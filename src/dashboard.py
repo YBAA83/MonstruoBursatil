@@ -158,21 +158,30 @@ st.caption("AI-Powered Trading Signals | Real-Time Financial Indicators")
 if not logic.is_healthy():
     st.warning("⚠️ **Conexión con Binance Restringida**")
     with st.expander("🛠️ Panel de Diagnóstico (Haz clic para ver el error)"):
-        st.write(f"**TLD Actual:** `{logic.ingestor.tld}`")
-        st.write(f"**SDK Listo:** `{'✅ SI' if logic.ingestor.sdk_ready else '❌ NO'}`")
+        tld_val = getattr(logic.ingestor, 'tld', 'N/A')
+        sdk_val = getattr(logic.ingestor, 'sdk_ready', False)
+        st.write(f"**TLD Actual:** `{tld_val}`")
+        st.write(f"**SDK Listo:** `{'✅ SI' if sdk_val else '❌ NO'}`")
+        
         if 'last_binance_error' in st.session_state:
             st.error(f"**Último Error Detectado:** {st.session_state['last_binance_error']}")
         
         st.info("""
         **Pasos para solucionar:**
         1. Ve a **'Settings'** -> **'Secrets'** en Streamlit Cloud.
-        2. Asegúrate de tener: `BINANCE_TLD = "us"` (si usas servidores USA).
-        3. Si sigue fallando, prueba con: `BINANCE_TLD = "com"`.
-        4. Si el error es `HTTP 451`, Binance está bloqueando legalmente la IP del servidor.
+        2. Asegúrate de tener: `BINANCE_TLD = "us"`
+        3. Si persiste, prueba limpiar la caché con el botón de abajo.
         """)
-        if st.button("🔄 Forzar Re-conexión"):
-            st.session_state.market_overview = None
-            st.rerun()
+        
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if st.button("🔄 Re-conectar"):
+                st.session_state.market_overview = None
+                st.rerun()
+        with col_b:
+            if st.button("🧹 Limpiar Caché"):
+                st.cache_resource.clear()
+                st.rerun()
 
 # Render Ticker
 if st.session_state.ticker_data:
