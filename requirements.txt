@@ -1,0 +1,7 @@
+python-binance
+google-genai
+streamlit
+pandas
+python-dotenv
+plotly
+websockets==13.1
