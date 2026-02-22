@@ -11,7 +11,11 @@ class BusinessLogic:
         self.news = NewsScraper()
         self.cache = {}
         self.last_update = 0
-        self.update_interval = 60 # Update ranking every 60 seconds
+        self.update_interval = 60
+        
+    def is_healthy(self):
+        """Checks if the data connection is alive."""
+        return self.ingestor and self.ingestor.client is not None
 
     def get_market_overview(self, specific_symbols=None):
         """

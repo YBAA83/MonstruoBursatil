@@ -9,12 +9,29 @@ class BinanceDataIngestor:
     def __init__(self):
         api_key = os.getenv("BINANCE_API_KEY")
         api_secret = os.getenv("BINANCE_SECRET_KEY")
+        tld = os.getenv("BINANCE_TLD", "com") # Support for binance.us
         
-        if not api_key or not api_secret:
-            print("Warning: BINANCE_API_KEY or BINANCE_SECRET_KEY not found in environment variables. Functionality may be limited.")
-            self.client = Client() # Public endpoints still work without keys
-        else:
-            self.client = Client(api_key, api_secret)
+        # Robust request parameters for cloud environments
+        requests_params = {
+            'timeout': 10
+        }
+        
+        try:
+            if not api_key or not api_secret:
+                print(f"Warning: Starting Binance client (TLD: {tld}) without keys.")
+                self.client = Client(tld=tld, requests_params=requests_params)
+            else:
+                self.client = Client(api_key, api_secret, tld=tld, requests_params=requests_params)
+            
+            # Non-blocking ping test
+            # We don't want to crash __init__ if ping fails, but we want to know
+            try:
+                self.client.ping()
+            except Exception as e:
+                print(f"Warning: Binance Ping failed (TLD: {tld}). Connection might be restricted: {e}")
+        except Exception as e:
+            print(f"Critical: Failed to initialize Binance Client: {e}")
+            self.client = None
 
     def get_all_tickers(self):
         """Fetches all ticker prices."""

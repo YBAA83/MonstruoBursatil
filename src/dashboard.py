@@ -154,6 +154,17 @@ def render_ticker(ticker_data):
 st.title("🚀 Monstruo Bursátil Dashboard")
 st.caption("AI-Powered Trading Signals | Real-Time Financial Indicators")
 
+# Connection Health Check
+if not logic.is_healthy():
+    st.warning("⚠️ **Conexión con Binance Restringida**")
+    st.info("""
+    Parece que los servidores de Streamlit (USA) no pueden conectar con Binance Global. 
+    **Para solucionarlo:**
+    1. Ve a **'Manage app'** -> **'Settings'** -> **'Secrets'** en Streamlit Cloud.
+    2. Añade esta línea: `BINANCE_TLD = "us"`
+    3. Dale a **Save** y la app se reiniciará automáticamente.
+    """)
+
 # Render Ticker
 if st.session_state.ticker_data:
     render_ticker(st.session_state.ticker_data)
