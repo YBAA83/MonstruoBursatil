@@ -40,13 +40,20 @@ class BinanceDataIngestor:
             self.sdk_ready = False
 
     def _fetch_rest(self, endpoint, params=None):
-        """Fallback to direct REST API calls if SDK is blocked."""
-        try:
-            response = requests.get(f"{self.base_url}{endpoint}", params=params, timeout=10)
-            if response.status_code == 200:
-                return response.json()
-        except Exception as e:
-            print(f"DEBUG: REST fallback failed for {endpoint}: {e}")
+        """Try multiple Binance endpoints (api1, api2, api3) to bypass IP bans."""
+        suffixes = ["", "1", "2", "3"]
+        last_error = ""
+        for s in suffixes:
+            try:
+                url = f"https://api{s}.binance.{self.tld}{endpoint}"
+                response = requests.get(url, params=params, timeout=5)
+                if response.status_code == 200:
+                    return response.json()
+                last_error = f"HTTP {response.status_code}"
+            except Exception as e:
+                last_error = str(e)
+        
+        st.session_state['last_binance_error'] = last_error
         return None
 
     def get_all_tickers(self):

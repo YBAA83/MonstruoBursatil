@@ -157,13 +157,22 @@ st.caption("AI-Powered Trading Signals | Real-Time Financial Indicators")
 # Connection Health Check
 if not logic.is_healthy():
     st.warning("⚠️ **Conexión con Binance Restringida**")
-    st.info("""
-    Parece que los servidores de Streamlit (USA) no pueden conectar con Binance Global. 
-    **Para solucionarlo:**
-    1. Ve a **'Manage app'** -> **'Settings'** -> **'Secrets'** en Streamlit Cloud.
-    2. Añade esta línea: `BINANCE_TLD = "us"`
-    3. Dale a **Save** y la app se reiniciará automáticamente.
-    """)
+    with st.expander("🛠️ Panel de Diagnóstico (Haz clic para ver el error)"):
+        st.write(f"**TLD Actual:** `{logic.ingestor.tld}`")
+        st.write(f"**SDK Listo:** `{'✅ SI' if logic.ingestor.sdk_ready else '❌ NO'}`")
+        if 'last_binance_error' in st.session_state:
+            st.error(f"**Último Error Detectado:** {st.session_state['last_binance_error']}")
+        
+        st.info("""
+        **Pasos para solucionar:**
+        1. Ve a **'Settings'** -> **'Secrets'** en Streamlit Cloud.
+        2. Asegúrate de tener: `BINANCE_TLD = "us"` (si usas servidores USA).
+        3. Si sigue fallando, prueba con: `BINANCE_TLD = "com"`.
+        4. Si el error es `HTTP 451`, Binance está bloqueando legalmente la IP del servidor.
+        """)
+        if st.button("🔄 Forzar Re-conexión"):
+            st.session_state.market_overview = None
+            st.rerun()
 
 # Render Ticker
 if st.session_state.ticker_data:
