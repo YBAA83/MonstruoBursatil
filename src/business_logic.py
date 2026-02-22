@@ -123,27 +123,35 @@ class BusinessLogic:
         return analyzed_assets
 
     def get_ticker_data(self, limit=20):
-        """
-        Lightweight fetch for ticker prices only. No AI.
-        """
+        """Lightweight fetch for ticker prices with fallback."""
         try:
-            all_tickers = self.ingestor.client.get_ticker()
-            df = pd.DataFrame(all_tickers)
+            df = self.ingestor.get_all_tickers()
+            if df.empty:
+                # Direct try in case ingestor fails
+                tickers = self.ingestor._fetch_rest("/api/v3/ticker/24hr")
+                if not tickers: return []
+                df = pd.DataFrame(tickers)
+            
             df = df[df['symbol'].str.endswith('USDT')]
-            # Sort by volume or just take top 20
-            df['quoteVolume'] = pd.to_numeric(df['quoteVolume'])
-            top_df = df.sort_values(by='quoteVolume', ascending=False).head(limit)
+            if 'quoteVolume' in df.columns:
+                df['quoteVolume'] = pd.to_numeric(df['quoteVolume'], errors='coerce')
+                top_df = df.sort_values(by='quoteVolume', ascending=False).head(limit)
+            else:
+                top_df = df.head(limit)
             
             ticker_list = []
+            price_col = 'price' if 'price' in top_df.columns else 'lastPrice'
+            change_col = 'priceChangePercent' if 'priceChangePercent' in top_df.columns else None
+            
             for _, row in top_df.iterrows():
                 ticker_list.append({
                     "symbol": row['symbol'],
-                    "price": float(row['lastPrice']),
-                    "change": float(row['priceChangePercent'])
+                    "price": float(row[price_col]),
+                    "change": float(row[change_col]) if change_col else 0.0
                 })
             return ticker_list
         except Exception as e:
-            print(f"DEBUG: Ticker fetch failed: {e}")
+            print(f"DEBUG: Ticker fetch logic failed: {e}")
             return []
 
 if __name__ == "__main__":
