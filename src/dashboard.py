@@ -8,6 +8,7 @@ if root not in sys.path:
 
 import streamlit as st
 import time
+import requests
 import pandas as pd
 import plotly.graph_objects as go
 from src.business_logic import BusinessLogic
@@ -157,20 +158,27 @@ st.caption("AI-Powered Trading Signals | Real-Time Financial Indicators")
 # Connection Health Check
 if not logic.is_healthy():
     st.warning("⚠️ **Conexión con Binance Restringida**")
-    with st.expander("🛠️ Panel de Diagnóstico (Haz clic para ver el error)"):
+    with st.expander("🛠️ Panel de Diagnóstico"):
         tld_val = getattr(logic.ingestor, 'tld', 'N/A')
         sdk_val = getattr(logic.ingestor, 'sdk_ready', False)
-        st.write(f"**TLD Actual:** `{tld_val}`")
-        st.write(f"**SDK Listo:** `{'✅ SI' if sdk_val else '❌ NO'}`")
+        st.write(f"**Región (TLD):** `{tld_val}`")
+        st.write(f"**SDK Binance:** `{'🟢 Conectado' if sdk_val else '🔴 Bloqueado'}`")
         
+        # Test General Internet
+        try:
+            res = requests.get("https://www.google.com", timeout=3)
+            st.write(f"**Internet General:** `🟢 OK` (Status: {res.status_code})")
+        except Exception as e:
+            st.write(f"**Internet General:** `🔴 FALLO` ({e})")
+
         if 'last_binance_error' in st.session_state:
-            st.error(f"**Último Error Detectado:** {st.session_state['last_binance_error']}")
+            st.error(f"**Error Técnico Binance:** {st.session_state['last_binance_error']}")
         
         st.info("""
-        **Pasos para solucionar:**
-        1. Ve a **'Settings'** -> **'Secrets'** en Streamlit Cloud.
-        2. Asegúrate de tener: `BINANCE_TLD = "us"`
-        3. Si persiste, prueba limpiar la caché con el botón de abajo.
+        **Guía de Solución:**
+        1. Si el SDK está 🔴, es normal en la nube.
+        2. Si el error es `HTTP 451`, Binance bloquea esta IP por ley.
+        3. Prueba cambiar `BINANCE_TLD = "us"` por `"com"` (o viceversa) en los Secrets.
         """)
         
         col_a, col_b = st.columns(2)
