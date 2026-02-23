@@ -30,6 +30,7 @@ def main():
                 st.write(f"CWD: {os.getcwd()}")
                 st.write(f"Python: {sys.version}")
                 st.write(f"Path: {sys.path}")
+                st.write(f"Executable: {sys.executable}")
         except:
             # Fallback for truly early crashes
             print(f"CRITICAL CRASH: {e}")
@@ -43,6 +44,7 @@ def run_dashboard():
     import plotly.graph_objects as go
     import textwrap
     from src.business_logic import BusinessLogic
+    from src.data_ingestion import BinanceDataIngestor
     from src.stats_persistence import load_stats, save_stats
     from streamlit_autorefresh import st_autorefresh
     # Config moved to main()
