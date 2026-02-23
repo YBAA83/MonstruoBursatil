@@ -19,6 +19,9 @@ def save_stats(hits, misses, total_input, total_output):
         "total_input": total_input,
         "total_output": total_output
     }
-    os.makedirs(os.path.dirname(STATS_FILE), exist_ok=True)
-    with open(STATS_FILE, "w") as f:
-        json.dump(data, f)
+    try:
+        os.makedirs(os.path.dirname(STATS_FILE), exist_ok=True)
+        with open(STATS_FILE, "w") as f:
+            json.dump(data, f)
+    except Exception as e:
+        print(f"Warning: Could not save stats to {STATS_FILE}: {e}")

@@ -15,6 +15,7 @@ from src.business_logic import BusinessLogic
 from src.data_ingestion import BinanceDataIngestor
 from src.stats_persistence import load_stats, save_stats
 from streamlit_autorefresh import st_autorefresh
+import textwrap
 
 # Page Config
 st.set_page_config(
@@ -85,7 +86,8 @@ if 'total_output' not in st.session_state: st.session_state.total_output = stats
 if 'market_overview' not in st.session_state: st.session_state.market_overview = None
 if 'ticker_data' not in st.session_state: st.session_state.ticker_data = []
 if 'prediction_history' not in st.session_state: st.session_state.prediction_history = {}
-if 'last_selected_assets' not in st.session_state: st.session_state.last_selected_assets = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]
+if 'last_selected_assets' not in st.session_state: 
+    st.session_state.last_selected_assets = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT"]
 
 # Sidebar
 st.sidebar.title("🚀 Monstruo Bursátil")
@@ -243,7 +245,7 @@ def render_asset_card(column, asset_data):
                 </div>
             """
 
-        import textwrap
+        # Performance logic
         card_html = textwrap.dedent(f"""
             <div class="glass-card">
                 <div style="display: flex; justify-content: space-between;">
