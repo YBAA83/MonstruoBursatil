@@ -14,6 +14,7 @@ import plotly.graph_objects as go
 from src.business_logic import BusinessLogic
 from src.data_ingestion import BinanceDataIngestor
 from src.stats_persistence import load_stats, save_stats
+from streamlit_autorefresh import st_autorefresh
 
 # Page Config
 st.set_page_config(
@@ -343,7 +344,6 @@ if st.session_state.market_overview:
 st.markdown("---")
 st.markdown("Developed with ❤️ by Monstruo Bursátil Team using Google Gemini AI")
 
-# Auto-Refresh Logic
+# Auto-Refresh Logic (Non-blocking)
 if auto_refresh:
-    time.sleep(refresh_rate)
-    st.rerun()
+    st_autorefresh(interval=refresh_rate * 1000, key="data_refresh")
