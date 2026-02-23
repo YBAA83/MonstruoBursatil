@@ -7,40 +7,45 @@ if root not in sys.path:
     sys.path.insert(0, root)
 
 import streamlit as st
-import time
-import requests
-import pandas as pd
-import plotly.graph_objects as go
-from src.business_logic import BusinessLogic
-from src.data_ingestion import BinanceDataIngestor
-from src.stats_persistence import load_stats, save_stats
-from streamlit_autorefresh import st_autorefresh
-import textwrap
 import traceback
 
-# Wrap everything in a main function for better error scoping
 def main():
     try:
+        # 1. Page Config MUST be the absolute first thing
+        st.set_page_config(
+            page_title="El Monstruo Bursátil",
+            page_icon="💹",
+            layout="wide",
+            initial_sidebar_state="expanded"
+        )
         run_dashboard()
     except Exception as e:
-        st.error("🔥 **ERROR CRÍTICO DETECTADO**")
-        st.markdown(f"**Error:** `{type(e).__name__}: {str(e)}`")
-        st.code(traceback.format_exc())
-        
-        # Additional Debugging Info
-        with st.expander("🛠️ Información de Sistema"):
-            st.write(f"Python Version: {sys.version}")
-            st.write(f"CWD: {os.getcwd()}")
-            st.write(f"Path: {sys.path}")
-            st.write("Environment Variables (Keys):", list(os.environ.keys()))
+        # Show error even if config failed
+        try:
+            st.error("🔥 **ERROR DE ARRANQUE**")
+            st.markdown(f"**Error:** `{type(e).__name__}: {str(e)}`")
+            st.code(traceback.format_exc())
+            
+            with st.expander("🛠️ Diagnóstico"):
+                st.write(f"CWD: {os.getcwd()}")
+                st.write(f"Python: {sys.version}")
+                st.write(f"Path: {sys.path}")
+        except:
+            # Fallback for truly early crashes
+            print(f"CRITICAL CRASH: {e}")
+            traceback.print_exc()
 
 def run_dashboard():
-    st.set_page_config(
-        page_title="El Monstruo Bursátil",
-        page_icon="💹",
-        layout="wide",
-        initial_sidebar_state="expanded"
-    )
+    # 2. Lazy imports inside protected scope
+    import time
+    import requests
+    import pandas as pd
+    import plotly.graph_objects as go
+    import textwrap
+    from src.business_logic import BusinessLogic
+    from src.stats_persistence import load_stats, save_stats
+    from streamlit_autorefresh import st_autorefresh
+    # Config moved to main()
 
     # Custom CSS for "Glassmorphism"
     st.markdown("""
