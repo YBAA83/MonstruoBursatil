@@ -128,9 +128,18 @@ if st.sidebar.button("🗑️ Reset Stats"):
 st.sidebar.markdown("---")
 auto_refresh = st.sidebar.checkbox("Auto-Actualizar 🔄", value=True)
 refresh_rate = st.sidebar.slider("Intervalo (segundos)", 30, 600, 180, step=30)
-
 st.sidebar.markdown(f"Próxima actualización en: `{refresh_rate}`s")
 st.sidebar.markdown("Status: **Live** 🟢")
+
+# Auto-Refresh Logic (Triggering data reload)
+if auto_refresh:
+    refresh_count = st_autorefresh(interval=refresh_rate * 1000, key="data_refresh")
+    if 'prev_refresh_count' not in st.session_state: 
+        st.session_state.prev_refresh_count = 0
+    
+    if refresh_count > st.session_state.prev_refresh_count:
+        st.session_state.market_overview = None # Force reload on timer tick
+        st.session_state.prev_refresh_count = refresh_count
 
 # Helper for icons
 def get_crypto_icon(symbol):
@@ -291,9 +300,9 @@ def load_data(symbols=None):
         return []
 
 # Initialize assets and selection
-default_assets = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT"]
+default_assets_list = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT"]
 available_options = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT", "LINKUSDT", "DOTUSDT", "MATICUSDT", "SHIBUSDT", "LTCUSDT", "NEARUSDT"]
-selected_assets = st.sidebar.multiselect("Activos (Max 12)", available_options, default=default_assets[:8])
+selected_assets = st.sidebar.multiselect("Activos (Max 12)", available_options, default=default_assets_list[:8])
 if len(selected_assets) > 12: selected_assets = selected_assets[:12]
 
 if selected_assets != st.session_state.last_selected_assets:
@@ -327,24 +336,21 @@ if st.session_state.market_overview:
             cols = st.columns(4)
             for j in range(4):
                 if i + j < len(assets_with_news):
-                    asset = assets_with_news[i+j]
+                    row_asset = assets_with_news[i+j]
                     with cols[j]:
-                        symbol_display = asset.get('symbol', '???').replace('USDT','')
+                        symbol_display = str(row_asset.get('symbol', '???')).replace('USDT','')
                         with st.expander(f"Noticias {symbol_display}", expanded=False):
-                            for n in asset['news']:
+                            asset_news = row_asset.get('news', [])
+                            for n in asset_news:
                                 if not isinstance(n, dict): continue
-                                title = n.get('title', 'Sin título')
-                                url = n.get('url', '#')
-                                sentiment = n.get('sentiment', 'Neutral')
-                                st.markdown(f"🔹 **{title}**")
-                                st.caption(f"Sentiment: {sentiment} | [Link]({url})")
+                                n_title = n.get('title', 'Sin título')
+                                n_url = n.get('url', '#')
+                                n_sentiment = n.get('sentiment', 'Neutral')
+                                st.markdown(f"🔹 **{n_title}**")
+                                st.caption(f"Sentiment: {n_sentiment} | [Link]({n_url})")
     else:
         st.write("No hay noticias recientes para los activos seleccionados.")
 
 # Footer
 st.markdown("---")
 st.markdown("Developed with ❤️ by Monstruo Bursátil Team using Google Gemini AI")
-
-# Auto-Refresh Logic (Non-blocking)
-if auto_refresh:
-    st_autorefresh(interval=refresh_rate * 1000, key="data_refresh")
