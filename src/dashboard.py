@@ -196,7 +196,7 @@ if not logic.is_healthy():
 if st.session_state.ticker_data:
     render_ticker(st.session_state.ticker_data)
 
-col1, col2, col3, col4 = st.columns(4)
+# Static columns removed in favor of dynamic grid
 
 # Function to render asset card
 def render_asset_card(column, asset_data):
@@ -291,9 +291,10 @@ def load_data(symbols=None):
         return []
 
 # Initialize assets and selection
-default_assets = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]
-selected_assets = st.sidebar.multiselect("Activos (Max 4)", ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT"], default=default_assets)
-if len(selected_assets) > 4: selected_assets = selected_assets[:4]
+default_assets = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT"]
+available_options = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT", "LINKUSDT", "DOTUSDT", "MATICUSDT", "SHIBUSDT", "LTCUSDT", "NEARUSDT"]
+selected_assets = st.sidebar.multiselect("Activos (Max 12)", available_options, default=default_assets[:8])
+if len(selected_assets) > 12: selected_assets = selected_assets[:12]
 
 if selected_assets != st.session_state.last_selected_assets:
     st.session_state.market_overview = load_data(selected_assets)
@@ -307,38 +308,38 @@ if st.button("Actualizar Análisis"):
     st.session_state.market_overview = load_data(selected_assets)
     st.rerun()
 
-# Render Unique Cards
+# Render Cards in Dynamic Grid (3 columns per row)
 if st.session_state.market_overview:
-    cols = [col1, col2, col3, col4]
-    seen = set()
-    rendered_count = 0
-    for asset in st.session_state.market_overview:
-        if asset['symbol'] not in seen and rendered_count < 4:
-            render_asset_card(cols[rendered_count], asset)
-            seen.add(asset['symbol'])
-            rendered_count += 1
+    assets_to_render = st.session_state.market_overview[:12]
+    for i in range(0, len(assets_to_render), 3):
+        cols = st.columns(3)
+        for j in range(3):
+            if i + j < len(assets_to_render):
+                render_asset_card(cols[j], assets_to_render[i+j])
 
-# News Section
+# News Section (Adaptive Grid)
 st.markdown("---")
 st.subheader("🗞️ Últimas Noticias de Impacto")
 if st.session_state.market_overview:
-    news_cols = st.columns(len(st.session_state.market_overview))
-    for i, asset in enumerate(st.session_state.market_overview):
-        if not isinstance(asset, dict): continue
-        with news_cols[i]:
-            symbol_display = asset.get('symbol', '???').replace('USDT','')
-            with st.expander(f"Noticias {symbol_display}", expanded=True):
-                news_list = asset.get('news', [])
-                if news_list and isinstance(news_list, list):
-                    for n in news_list:
-                        if not isinstance(n, dict): continue
-                        title = n.get('title', 'Sin título')
-                        url = n.get('url', '#')
-                        sentiment = n.get('sentiment', 'Neutral')
-                        st.markdown(f"🔹 **{title}**")
-                        st.caption(f"Sentiment: {sentiment} | [Link]({url})")
-                else:
-                    st.write("No hay noticias recientes para este activo.")
+    assets_with_news = [a for a in st.session_state.market_overview if isinstance(a, dict) and a.get('news')]
+    if assets_with_news:
+        for i in range(0, len(assets_with_news), 4):
+            cols = st.columns(4)
+            for j in range(4):
+                if i + j < len(assets_with_news):
+                    asset = assets_with_news[i+j]
+                    with cols[j]:
+                        symbol_display = asset.get('symbol', '???').replace('USDT','')
+                        with st.expander(f"Noticias {symbol_display}", expanded=False):
+                            for n in asset['news']:
+                                if not isinstance(n, dict): continue
+                                title = n.get('title', 'Sin título')
+                                url = n.get('url', '#')
+                                sentiment = n.get('sentiment', 'Neutral')
+                                st.markdown(f"🔹 **{title}**")
+                                st.caption(f"Sentiment: {sentiment} | [Link]({url})")
+    else:
+        st.write("No hay noticias recientes para los activos seleccionados.")
 
 # Footer
 st.markdown("---")

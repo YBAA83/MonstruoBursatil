@@ -119,6 +119,9 @@ class BusinessLogic:
                 "news": news_items
             })
             
+        # Sort by volume descending
+        analyzed_assets.sort(key=lambda x: x.get('volume', 0), reverse=True)
+            
         print(f"DEBUG: Returning {len(analyzed_assets)} analyzed assets.")
         return analyzed_assets
 
