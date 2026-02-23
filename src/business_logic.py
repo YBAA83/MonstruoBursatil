@@ -30,16 +30,29 @@ class BusinessLogic:
         if specific_symbols:
             print(f"DEBUG: Processing specific symbols: {specific_symbols}")
             try:
-                # Fetch 24h ticker for all to filter
-                all_tickers_24h = self.ingestor.client.get_ticker()
-                df_24h = pd.DataFrame(all_tickers_24h)
+                # Use robust method instead of raw client
+                df_24h = self.ingestor.get_all_tickers()
+                if df_24h.empty:
+                    # Fallback to second robust method if first is too light
+                    tickers = self.ingestor._fetch_rest("/api/v3/ticker/24hr")
+                    if tickers: df_24h = pd.DataFrame(tickers)
                 
+                if df_24h.empty: return []
+
                 # Filter for requested symbols
+                # Handle both 'price' (ticker/price) and 'lastPrice' (ticker/24hr)
                 top_movers = df_24h[df_24h['symbol'].isin(specific_symbols)].copy()
                 
-                # Ensure numeric
+                # Ensure numeric and standard names
+                if 'lastPrice' not in top_movers.columns and 'price' in top_movers.columns:
+                    top_movers['lastPrice'] = top_movers['price']
+                
                 cols = ['priceChangePercent', 'quoteVolume', 'lastPrice']
-                top_movers[cols] = top_movers[cols].apply(pd.to_numeric, errors='coerce')
+                for c in cols:
+                    if c in top_movers.columns:
+                        top_movers[c] = pd.to_numeric(top_movers[c], errors='coerce')
+                    else:
+                        top_movers[c] = 0.0
             except Exception as e:
                 print(f"DEBUG: Error fetching specific symbols: {e}")
                 return []
