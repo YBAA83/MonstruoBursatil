@@ -381,9 +381,8 @@ def run_dashboard():
         if not symbols: return []
         symbols = list(set(symbols))
         
-        # Fetch Expanded Ticker Data (Fast, no AI) - Only for Binance
-        if source == "Binance":
-            st.session_state.ticker_data = logic.get_ticker_data(limit=15)
+        # Fetch Expanded Ticker Data (Fast, no AI)
+        st.session_state.ticker_data = logic.get_ticker_data(source=source, limit=15)
         
         if st.session_state.market_overview and source == "Binance":
             for asset in st.session_state.market_overview:

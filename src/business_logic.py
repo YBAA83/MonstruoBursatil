@@ -227,36 +227,51 @@ class BusinessLogic:
         print(f"DEBUG: Returning {len(analyzed_assets)} analyzed assets.")
         return analyzed_assets
 
-    def get_ticker_data(self, limit=20):
-        """Lightweight fetch for ticker prices with fallback."""
+    def get_ticker_data(self, source="Binance", limit=20):
+        """Lightweight fetch for ticker prices across all sources."""
         try:
-            df = self.ingestor.get_all_tickers()
-            if df.empty:
-                # Direct try in case ingestor fails
-                tickers = self.ingestor._fetch_rest("/api/v3/ticker/24hr")
-                if not tickers: return []
-                df = pd.DataFrame(tickers)
-            
-            df = df[df['symbol'].str.endswith('USDT')]
-            if 'quoteVolume' in df.columns:
-                df['quoteVolume'] = pd.to_numeric(df['quoteVolume'], errors='coerce')
-                top_df = df.sort_values(by='quoteVolume', ascending=False).head(limit)
+            if source == "Binance":
+                df = self.ingestor.get_all_tickers()
+                if df.empty:
+                    tickers = self.ingestor._fetch_rest("/api/v3/ticker/24hr")
+                    if not tickers: return []
+                    df = pd.DataFrame(tickers)
+                
+                df = df[df['symbol'].str.endswith('USDT')]
+                price_col = 'price' if 'price' in df.columns else 'lastPrice'
+                change_col = 'priceChangePercent' if 'priceChangePercent' in df.columns else None
+                
+                if 'quoteVolume' in df.columns:
+                    df['quoteVolume'] = pd.to_numeric(df['quoteVolume'], errors='coerce')
+                    top_df = df.sort_values(by='quoteVolume', ascending=False).head(limit)
+                else:
+                    top_df = df.head(limit)
+                    
+                ticker_list = []
+                for _, row in top_df.iterrows():
+                    ticker_list.append({
+                        "symbol": row['symbol'],
+                        "price": float(row[price_col]),
+                        "change": float(row[change_col]) if change_col else 0.0
+                    })
+                return ticker_list
             else:
-                top_df = df.head(limit)
-            
-            ticker_list = []
-            price_col = 'price' if 'price' in top_df.columns else 'lastPrice'
-            change_col = 'priceChangePercent' if 'priceChangePercent' in top_df.columns else None
-            
-            for _, row in top_df.iterrows():
-                ticker_list.append({
-                    "symbol": row['symbol'],
-                    "price": float(row[price_col]),
-                    "change": float(row[change_col]) if change_col else 0.0
-                })
-            return ticker_list
+                # Traditional Markets (Nasdaq, Forex, SP500)
+                if source == "Nasdaq":
+                    symbols = ["QQQ", "AAPL", "MSFT", "NVDA", "TSLA", "META", "AMZN", "GOOGL", "AMD", "NFLX"]
+                elif source == "Forex":
+                    symbols = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "USDCAD=X", "USDCHF=X", "NZDUSD=X"]
+                else: # SP500
+                    symbols = ["SPY", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "BRK-B", "UNH"]
+                
+                ticker_list = []
+                for s in symbols[:limit]:
+                    info = self.stocks_ingestor.get_ticker_info(s)
+                    if info:
+                        ticker_list.append(info)
+                return ticker_list
         except Exception as e:
-            print(f"DEBUG: Ticker fetch logic failed: {e}")
+            print(f"DEBUG: Ticker fetch failed for {source}: {e}")
             return []
 
     def generate_excel_report(self, analyzed_assets):
@@ -302,8 +317,8 @@ class BusinessLogic:
                 history = self.stocks_ingestor.get_historical_data(symbol)
                 
                 if info and not history.empty:
-                    # AI prompt for stocks (simpler context for now)
-                    context = f"S&P 500 Stock Analysis | Sector Insight: N/A"
+                    # AI prompt for stocks
+                    context = f"Tradicional Market Analysis | Symbol: {symbol}"
                     ai_result = self.ai.analyze_asset(symbol, history, context)
                     
                     asset_obj = {
@@ -311,15 +326,29 @@ class BusinessLogic:
                         "price": info['price'],
                         "change_24h": info['change'],
                         "volume": info['volume'],
-                        "whale_alert": False, # Stocks don't use this logic yet
+                        "whale_alert": False,
                         "signal": ai_result["signal"],
                         "reasoning": ai_result["reasoning"],
                         "levels": ai_result["levels"],
                         "history": history,
-                        "mtf_summary": ["1h: Stocks"], # yf 1h default
-                        "kpis": {} # Stock KPIs simplified
+                        "mtf_summary": ["1h: Trad."],
+                        "kpis": {}
                     }
                     analyzed_assets.append(asset_obj)
+                    
+                    # Alerting logic for stocks
+                    if asset_obj['signal'] in ["Green", "Red"]:
+                        last_sig = self.notified_signals.get(symbol)
+                        if last_sig != asset_obj['signal']:
+                            self.notifier.send_signal(
+                                symbol=symbol,
+                                signal=asset_obj['signal'],
+                                price=asset_obj['price'],
+                                reasoning=asset_obj['reasoning']
+                            )
+                            self.notified_signals[symbol] = asset_obj['signal']
+                    elif asset_obj['signal'] == "Yellow":
+                        self.notified_signals[symbol] = "Yellow"
             except Exception as e:
                 print(f"DEBUG: Stock process failed for {symbol}: {e}")
         return analyzed_assets
