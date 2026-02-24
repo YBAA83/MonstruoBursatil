@@ -151,21 +151,27 @@ def run_dashboard():
         save_stats(0, 0, 0, 0)
         st.rerun()
 
+    # --- AUTO-REFRESH CONFIG ---
     st.sidebar.markdown("---")
     auto_refresh = st.sidebar.checkbox("Auto-Actualizar 🔄", value=True)
-    refresh_rate = st.sidebar.slider("Intervalo (segundos)", 30, 600, 180, step=30)
-    st.sidebar.markdown(f"Próxima actualización en: `{refresh_rate}`s")
-    st.sidebar.markdown("Status: **Live** 🟢")
+    refresh_rate = st.sidebar.slider("Intervalo (segundos)", 30, 300, 60, step=10)
+    
+    # Track Last Update for the UI
+    if 'last_update_ts' not in st.session_state:
+        st.session_state.last_update_ts = "Nunca"
 
-    # Auto-Refresh Logic (Triggering data reload)
     if auto_refresh:
-        refresh_count = st_autorefresh(interval=refresh_rate * 1000, key="data_refresh")
+        refresh_count = st_autorefresh(interval=refresh_rate * 1000, key="data_refresh_v2")
         if 'prev_refresh_count' not in st.session_state: 
             st.session_state.prev_refresh_count = 0
         
         if refresh_count > st.session_state.prev_refresh_count:
-            st.session_state.market_overview = None # Force reload on timer tick
+            st.session_state.market_overview = None # Force reload
             st.session_state.prev_refresh_count = refresh_count
+
+    st.sidebar.caption(f"⏱️ Actualización: cada {refresh_rate}s")
+    st.sidebar.markdown(f"📅 **Último Carga:** `{st.session_state.last_update_ts}`")
+    st.sidebar.markdown("Status: **Live** 🟢")
 
     # Helper for icons
     def get_crypto_icon(symbol):
@@ -350,6 +356,11 @@ def run_dashboard():
                     if usage:
                         st.session_state.total_input += usage.get('prompt_tokens', 0)
                         st.session_state.total_output += usage.get('candidates_tokens', 0)
+                
+                # Update timestamp
+                from datetime import datetime
+                st.session_state.last_update_ts = datetime.now().strftime("%H:%M:%S")
+                
                 save_stats(st.session_state.hits, st.session_state.misses, st.session_state.total_input, st.session_state.total_output)
                 return new_data
         except Exception as e:
