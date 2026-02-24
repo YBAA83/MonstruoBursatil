@@ -31,23 +31,21 @@ class AIAnalyst:
         Your task is to analyze the following cryptocurrency asset based on provided data keys.
 
         Asset: {symbol}
-        Recent Price Data (OHLCV last 5 hours):
+        Analysis Data Context (MTF Trends, Volume Spikes, Sentiment):
+        {news_sentiment}
+
+        Recent Price Data (OHLCV last 5 hours of primary timeframe):
         {price_data.tail().to_string()}
 
-        News Sentiment Context: {news_sentiment}
+        Instructions:
+        1. Evaluate Multi-Temporal Trends (MTF): If 15m is bullish but 4h is bearish, the signal should be YELLOW (Sideways).
+        2. Whale Activity: If a volume spike is mentioned, prioritize a GREEN or RED signal depending on price direction.
+        3. Sentiment: Incorporate headlines into the reasoning.
 
-        Based on this, provide:
-        1. A "Traffic Light" Signal: 
-           - GREEN (Bullish/Buy)
-           - YELLOW (Neutral/Sideways)
-           - RED (Bearish/Sell)
-        2. A concise reasoning (max 2 sentences).
-        3. Key Support and Resistance levels.
-
-        Output Format:
-        Signal: [COLOR]
-        Reasoning: [TEXT]
-        Levels: [TEXT]
+        Output Style:
+        Signal: [GREEN/YELLOW/RED]
+        Reasoning: [TEXT - Concise max 2 sentences]
+        Levels: [TEXT - Define support and resistance]
         """
         
         try:

@@ -269,15 +269,31 @@ def run_dashboard():
                     </div>
                 """
 
+            # Whale and MTF info
+            whale_html = ""
+            if asset_data.get('whale_alert'):
+                whale_html = f"""
+                    <div style="background: linear-gradient(90deg, #ff4b1f, #ff9068); color: white; padding: 5px 15px; border-radius: 10px; font-weight: 900; font-size: 0.8em; margin-bottom: 15px; text-align: center; border: 1px solid white;">
+                        🚨 WHALE ACTIVITY: {asset_data.get('vol_anomaly', 0):.1f}x Vol!
+                    </div>
+                """
+            
+            mtf_html = ""
+            if asset_data.get('mtf_summary'):
+                mtf_badges = "".join([f'<span style="background:rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 5px; margin-right: 5px; font-size: 0.7em;">{tf}</span>' for tf in asset_data['mtf_summary']])
+                mtf_html = f'<div style="margin-top: 10px;">{mtf_badges}</div>'
+
             # Performance logic
             card_html = textwrap.dedent(f"""
                 <div class="glass-card">
+                    {whale_html}
                     <div style="display: flex; justify-content: space-between;">
                         <span style="font-weight: 900; font-size: 1.5em;">{get_crypto_icon(symbol)} {symbol.replace("USDT","")}</span>
                         <span style="color: {signal_color}; font-weight: 900;">{signal_text}</span>
                     </div>
                     <div style="font-size: 2.2em; font-weight: 900; margin: 10px 0;">${price:,.2f}</div>
                     <div style="color: {'#00ff7f' if change > 0 else '#ff4444'}; font-weight: 700;">{change:+.2f}% (24h)</div>
+                    {mtf_html}
                     {performance_html}
                     <div style="margin-top: 20px; font-size: 0.85em; color: #ddd;">"{asset_data['reasoning']}"</div>
                     <div style="margin-top: 10px; font-size: 0.8em; color: #888;">🎯 NIVELES: {asset_data['levels']}</div>
@@ -285,11 +301,26 @@ def run_dashboard():
             """).strip()
             st.html(card_html)
             
-            if 'history' in asset_data and not asset_data['history'].empty:
-                df = asset_data['history']
+            # Interactive Timeframe Selection
+            tf_key = f"tf_{symbol}"
+            if tf_key not in st.session_state: st.session_state[tf_key] = "1h"
+            
+            selected_tf = st.radio(
+                f"Timeframe {symbol}", 
+                ["15m", "1h", "4h"], 
+                index=["15m", "1h", "4h"].index(st.session_state[tf_key]),
+                horizontal=True,
+                key=f"radio_{symbol}",
+                label_visibility="collapsed"
+            )
+            st.session_state[tf_key] = selected_tf
+
+            # Display selected timeframe chart
+            df = asset_data.get('mtf_data', {}).get(selected_tf, asset_data['history'])
+            if not df.empty:
                 fig = go.Figure(data=[go.Candlestick(x=df['timestamp'], open=df['open'], high=df['high'], low=df['low'], close=df['close'])])
                 fig.update_layout(template="plotly_dark", height=300, margin=dict(l=0, r=0, t=0, b=0), xaxis_rangeslider_visible=False)
-                st.plotly_chart(fig, use_container_width=True, key=f"chart_{symbol}_{int(time.time())}")
+                st.plotly_chart(fig, use_container_width=True, key=f"chart_{symbol}_{selected_tf}")
 
     # Asset Selection Constants
     default_assets = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]

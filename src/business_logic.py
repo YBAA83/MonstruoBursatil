@@ -12,6 +12,7 @@ class BusinessLogic:
         self.cache = {}
         self.last_update = 0
         self.update_interval = 60
+        self.timeframes = ["15m", "1h", "4h"]
         
     def is_healthy(self):
         """Checks if the data connection is alive."""
@@ -71,15 +72,34 @@ class BusinessLogic:
         for index, row in top_movers.iterrows():
             symbol = row['symbol']
             price_change = row['priceChangePercent']
+            vol_24h = row['quoteVolume']
             print(f"DEBUG: Processing {symbol}...")
             
-            # Fetch Context
-            try:
-                history = self.ingestor.get_historical_data(symbol, limit=200)
-                if history.empty: print(f"DEBUG: No history for {symbol}")
-            except Exception as e:
-                print(f"DEBUG: History fetch failed for {symbol}: {e}")
-                history = pd.DataFrame()
+            # Fetch MTF Context
+            mtf_data = {}
+            for tf in self.timeframes:
+                try:
+                    # Map common strings to binance intervals if needed
+                    interval = tf
+                    limit = 100 if tf == "15m" else 200
+                    history = self.ingestor.get_historical_data(symbol, interval=interval, limit=limit)
+                    mtf_data[tf] = history
+                except Exception as e:
+                    print(f"DEBUG: {tf} fetch failed for {symbol}: {e}")
+                    mtf_data[tf] = pd.DataFrame()
+
+            # Main history (1h default for back compatibility)
+            history = mtf_data.get("1h", pd.DataFrame())
+            
+            # Whale Watcher (Volume Anomaly Detection)
+            whale_alert = False
+            vol_anomaly_score = 0
+            if not mtf_data["1h"].empty:
+                avg_vol = mtf_data["1h"]['volume'].tail(24).mean()
+                last_vol = mtf_data["1h"]['volume'].iloc[-1]
+                if last_vol > avg_vol * 3: # 300% spike
+                    whale_alert = True
+                    vol_anomaly_score = (last_vol / avg_vol)
 
             try:
                 news_items = self.news.get_news_for_asset(symbol)
@@ -87,31 +107,35 @@ class BusinessLogic:
                 print(f"DEBUG: News fetch failed for {symbol}: {e}")
                 news_items = []
             
-            # Simple sentiment string builder for AI context
+            # MTF & Whale Context for AI
+            mtf_summary = []
+            for tf, df in mtf_data.items():
+                if not df.empty:
+                    last_c = df['close'].iloc[-1]
+                    prev_c = df['close'].iloc[-2] if len(df) > 1 else last_c
+                    tf_change = ((last_c - prev_c) / prev_c) * 100
+                    mtf_summary.append(f"{tf}: {tf_change:+.2f}%")
+            
             news_context = f"Latest {len(news_items)} news headlines: " + "; ".join([n['title'] for n in news_items]) if news_items else "No recent news."
+            whale_context = f" | WHALE ALERT: Volume spike {vol_anomaly_score:.1f}x average!" if whale_alert else ""
+            full_context = f"MTF Trends ({', '.join(mtf_summary)}) | {news_context}{whale_context}"
 
             # AI Analysis
             print(f"DEBUG: Analyzing {symbol} with AI...")
-            ai_result = self.ai.analyze_asset(symbol, history, news_context)
+            ai_result = self.ai.analyze_asset(symbol, history, full_context)
             
             # Technical Analysis (KPIs)
             kpis = {"RSI": None, "SMA_20": None, "EMA_50": None}
             if not history.empty and len(history) > 50:
                 try:
-                    # Calculate SMA 20
                     history['SMA_20'] = history['close'].rolling(window=20).mean()
-                    
-                    # Calculate EMA 50
                     history['EMA_50'] = history['close'].ewm(span=50, adjust=False).mean()
-                    
-                    # Calculate RSI 14
                     delta = history['close'].diff()
                     gain = (delta.where(delta > 0, 0)).ewm(alpha=1/14, adjust=False).mean()
                     loss = (-delta.where(delta < 0, 0)).ewm(alpha=1/14, adjust=False).mean()
                     rs = gain / loss
                     history['RSI_14'] = 100 - (100 / (1 + rs))
                     
-                    # Get latest values
                     kpis["RSI"] = history['RSI_14'].iloc[-1]
                     kpis["SMA_20"] = history['SMA_20'].iloc[-1]
                     kpis["EMA_50"] = history['EMA_50'].iloc[-1]
@@ -122,12 +146,16 @@ class BusinessLogic:
                 "symbol": symbol,
                 "price": row['lastPrice'],
                 "change_24h": price_change,
-                "volume": row['quoteVolume'],
+                "volume": vol_24h,
+                "whale_alert": whale_alert,
+                "vol_anomaly": vol_anomaly_score,
+                "mtf_summary": mtf_summary,
                 "signal": ai_result["signal"],
                 "reasoning": ai_result["reasoning"],
                 "levels": ai_result["levels"],
                 "usage": ai_result.get("usage", {}),
                 "history": history,
+                "mtf_data": mtf_data, # Store all timeframes for chart switching
                 "kpis": kpis,
                 "news": news_items
             })
