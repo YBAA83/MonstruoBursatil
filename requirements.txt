@@ -7,3 +7,4 @@ python-dotenv
 plotly
 websockets==13.1
 streamlit-autorefresh
+openpyxl

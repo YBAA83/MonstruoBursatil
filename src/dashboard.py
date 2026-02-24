@@ -139,6 +139,21 @@ def run_dashboard():
     st.sidebar.write(f"💵 ${cost_usd:,.4f} USD")
     st.sidebar.write(f"💶 {cost_eur:,.4f} EUR")
 
+    # Report Section
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("📄 Reportes")
+    if st.session_state.market_overview:
+        excel_data = logic.generate_excel_report(st.session_state.market_overview)
+        if excel_data:
+            st.sidebar.download_button(
+                label="📥 Descargar Excel",
+                data=excel_data,
+                file_name=f"reporte_monstruo.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+    else:
+        st.sidebar.caption("Analiza activos para habilitar reportes.")
+
     st.sidebar.markdown("---")
     st.sidebar.subheader("💰 Calculadora P/L")
     investment_size = st.sidebar.number_input("Inversión (USDT)", min_value=10.0, value=1000.0, step=100.0)

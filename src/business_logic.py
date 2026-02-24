@@ -4,6 +4,7 @@ from src.news_scraper import NewsScraper
 from src.notifier import TelegramNotifier
 import pandas as pd
 import time
+import io
 
 class BusinessLogic:
     def __init__(self):
@@ -123,28 +124,45 @@ class BusinessLogic:
             whale_context = f" | WHALE ALERT: Volume spike {vol_anomaly_score:.1f}x average!" if whale_alert else ""
             full_context = f"MTF Trends ({', '.join(mtf_summary)}) | {news_context}{whale_context}"
 
-            # AI Analysis
-            print(f"DEBUG: Analyzing {symbol} with AI...")
-            ai_result = self.ai.analyze_asset(symbol, history, full_context)
-            
-            # Technical Analysis (KPIs)
-            kpis = {"RSI": None, "SMA_20": None, "EMA_50": None}
+            # Technical Analysis (KPIs) - Moved BEFORE AI to provide context
+            kpis = {"RSI": None, "SMA_20": None, "EMA_50": None, "MACD": None, "BB_Upper": None, "BB_Lower": None}
             if not history.empty and len(history) > 50:
                 try:
                     history['SMA_20'] = history['close'].rolling(window=20).mean()
                     history['EMA_50'] = history['close'].ewm(span=50, adjust=False).mean()
+                    
+                    # RSI
                     delta = history['close'].diff()
                     gain = (delta.where(delta > 0, 0)).ewm(alpha=1/14, adjust=False).mean()
                     loss = (-delta.where(delta < 0, 0)).ewm(alpha=1/14, adjust=False).mean()
                     rs = gain / loss
                     history['RSI_14'] = 100 - (100 / (1 + rs))
                     
+                    # MACD
+                    history['EMA_12'] = history['close'].ewm(span=12, adjust=False).mean()
+                    history['EMA_26'] = history['close'].ewm(span=26, adjust=False).mean()
+                    history['MACD'] = history['EMA_12'] - history['EMA_26']
+                    history['MACD_Signal'] = history['MACD'].ewm(span=9, adjust=False).mean()
+                    
+                    # Bollinger Bands
+                    history['STD_20'] = history['close'].rolling(window=20).std()
+                    history['BB_Upper'] = history['SMA_20'] + (history['STD_20'] * 2)
+                    history['BB_Lower'] = history['SMA_20'] - (history['STD_20'] * 2)
+                    
                     kpis["RSI"] = history['RSI_14'].iloc[-1]
                     kpis["SMA_20"] = history['SMA_20'].iloc[-1]
                     kpis["EMA_50"] = history['EMA_50'].iloc[-1]
+                    kpis["MACD"] = history['MACD'].iloc[-1]
+                    kpis["BB_Upper"] = history['BB_Upper'].iloc[-1]
+                    kpis["BB_Lower"] = history['BB_Lower'].iloc[-1]
                 except Exception as e:
                     print(f"DEBUG: Error calculating KPIs for {symbol}: {e}")
 
+            # AI Analysis
+            print(f"DEBUG: Analyzing {symbol} with AI...")
+            kpi_context = f" | RSI: {kpis['RSI']:.1f} | MACD: {kpis['MACD']:.4f} | BB: [{kpis['BB_Lower']:.2f} - {kpis['BB_Upper']:.2f}]" if kpis['RSI'] else ""
+            ai_result = self.ai.analyze_asset(symbol, history, full_context + kpi_context)
+            
             asset_obj = {
                 "symbol": symbol,
                 "price": row['lastPrice'],
@@ -216,6 +234,38 @@ class BusinessLogic:
         except Exception as e:
             print(f"DEBUG: Ticker fetch logic failed: {e}")
             return []
+
+    def generate_excel_report(self, analyzed_assets):
+        """Genera un reporte en Excel basado en los activos analizados."""
+        if not analyzed_assets:
+            return None
+            
+        output = io.BytesIO()
+        
+        # Prepare data for Excel
+        report_data = []
+        for asset in analyzed_assets:
+            report_data.append({
+                "Activo": asset.get('symbol', 'N/A'),
+                "Precio Actual": asset.get('price', 0),
+                "Cambio 24h (%)": asset.get('change_24h', 0),
+                "Señal AI": asset.get('signal', 'N/A'),
+                "Razonamiento": asset.get('reasoning', 'N/A'),
+                "Soportes/Resistencias": asset.get('levels', 'N/A'),
+                "Whale Alert": "🚨 SÍ" if asset.get('whale_alert') else "No",
+                "MTF Summary": ", ".join(asset.get('mtf_summary', []))
+            })
+        
+        df = pd.DataFrame(report_data)
+        
+        # Write to Excel
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Señales Monstruo')
+            
+            # Simple formatting logic if needed
+            # Access workbook/worksheet if we want to bold headers etc.
+            
+        return output.getvalue()
 
 if __name__ == "__main__":
     logic = BusinessLogic()
