@@ -114,9 +114,7 @@ def run_dashboard():
         st.session_state.last_selected_assets = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT"]
 
     # Sidebar
-    st.sidebar.success("v4.1 - MultiMarket Activado")
     st.sidebar.title("🚀 Monstruo Bursátil")
-    st.sidebar.warning("SELECTOR DEBAJO 👇")
     st.sidebar.markdown("---")
     
     # --- MARKET SELECTOR ---
@@ -490,6 +488,7 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         import traceback
-        st.error("🚨 Error Crítico al Iniciar el Dashboard")
-        st.code(traceback.format_exc())
-        st.write("Intenta reiniciar la aplicación en el panel de Streamlit Cloud.")
+        st.error("🚨 Error Crítico")
+        st.write("Hubo un fallo al iniciar la aplicación. Prueba reiniciar el servidor.")
+        with st.expander("Ver detalles técnicos"):
+            st.code(traceback.format_exc())
