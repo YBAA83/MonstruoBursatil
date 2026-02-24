@@ -114,6 +114,73 @@ class BinanceDataIngestor:
         except:
             return pd.DataFrame()
 
+    def get_order_book(self, symbol, limit=100):
+        """Fetches order book depth."""
+        data = None
+        if self.sdk_ready:
+            try:
+                data = self.client.get_order_book(symbol=symbol, limit=limit)
+            except: pass
+        
+        if not data:
+            params = {"symbol": symbol, "limit": limit}
+            data = self._fetch_rest("/api/v3/depth", params=params)
+            
+        return data
+
+class StocksDataIngestor:
+    """Ingestor for stock market data using yfinance."""
+    def __init__(self):
+        try:
+            import yfinance as yf
+            self.yf = yf
+        except ImportError:
+            self.yf = None
+
+    def get_historical_data(self, symbol, interval="1h", period="5d"):
+        """Fetches stock data from yfinance."""
+        if not self.yf: return pd.DataFrame()
+        try:
+            # Map common trading intervals to yfinance
+            yf_interval = "1h"
+            if interval == "15m": yf_interval = "15m"
+            elif interval == "4h": yf_interval = "1h" # yf doesn't support 4h directly well, use 1h
+            
+            ticker = self.yf.Ticker(symbol)
+            df = ticker.history(period=period, interval=yf_interval)
+            
+            if df.empty: return pd.DataFrame()
+            
+            df = df.reset_index()
+            # Standardize column names to match crypto
+            df = df.rename(columns={
+                df.columns[0]: 'timestamp', 
+                'Open': 'open', 
+                'High': 'high', 
+                'Low': 'low', 
+                'Close': 'close', 
+                'Volume': 'volume'
+            })
+            return df[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
+        except Exception as e:
+            print(f"DEBUG: yfinance fetch failed for {symbol}: {e}")
+            return pd.DataFrame()
+
+    def get_ticker_info(self, symbol):
+        """Fetches basic price/change info."""
+        if not self.yf: return None
+        try:
+            ticker = self.yf.Ticker(symbol)
+            info = ticker.fast_info
+            return {
+                "symbol": symbol,
+                "price": info['lastPrice'],
+                "change": ((info['lastPrice'] - info['previousClose']) / info['previousClose']) * 100 if 'previousClose' in info else 0,
+                "volume": info['lastVolume']
+            }
+        except:
+            return None
+
 if __name__ == "__main__":
     ingestor = BinanceDataIngestor()
     print("Top Movers (USDT):")

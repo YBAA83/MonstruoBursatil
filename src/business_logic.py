@@ -1,4 +1,4 @@
-from src.data_ingestion import BinanceDataIngestor
+from src.data_ingestion import BinanceDataIngestor, StocksDataIngestor
 from src.ai_analyst import AIAnalyst
 from src.news_scraper import NewsScraper
 from src.notifier import TelegramNotifier
@@ -9,6 +9,7 @@ import io
 class BusinessLogic:
     def __init__(self):
         self.ingestor = BinanceDataIngestor()
+        self.stocks_ingestor = StocksDataIngestor()
         self.ai = AIAnalyst()
         self.news = NewsScraper()
         self.notifier = TelegramNotifier()
@@ -22,16 +23,24 @@ class BusinessLogic:
         """Checks if the data connection is alive."""
         return self.ingestor and self.ingestor.client is not None
 
-    def get_market_overview(self, specific_symbols=None):
+    def get_market_overview(self, specific_symbols=None, source="Binance"):
         """
         Orchestrates the data flow:
-        1. Fetch top movers OR specific symbols.
+        1. Fetch top movers OR specific symbols (Binance or Stocks).
         2. For selected assets, fetch news and historical data.
         3. Run AI analysis.
         4. Return structured data for Dashboard.
         """
-        print("DEBUG: Executing get_market_overview...")
+        print(f"DEBUG: Executing get_market_overview for {source}...")
         
+        analyzed_assets = []
+        
+        if source == "SP500":
+            # Default S&P 500 tickers if none provided
+            symbols = specific_symbols if specific_symbols else ["SPY", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL"]
+            return self._get_stocks_overview(symbols)
+
+        # Original Binance Logic
         if specific_symbols:
             print(f"DEBUG: Processing specific symbols: {specific_symbols}")
             try:
@@ -122,7 +131,15 @@ class BusinessLogic:
             
             news_context = f"Latest {len(news_items)} news headlines: " + "; ".join([n['title'] for n in news_items]) if news_items else "No recent news."
             whale_context = f" | WHALE ALERT: Volume spike {vol_anomaly_score:.1f}x average!" if whale_alert else ""
-            full_context = f"MTF Trends ({', '.join(mtf_summary)}) | {news_context}{whale_context}"
+            
+            # Order Book Walls
+            walls = self.process_depth_walls(symbol)
+            wall_context = ""
+            if walls:
+                if walls['buy_wall']: wall_context += f" | BUY WALL found at {walls['buy_wall']}"
+                if walls['sell_wall']: wall_context += f" | SELL WALL found at {walls['sell_wall']}"
+            
+            full_context = f"MTF Trends ({', '.join(mtf_summary)}) | {news_context}{whale_context}{wall_context}"
 
             # Technical Analysis (KPIs) - Moved BEFORE AI to provide context
             kpis = {"RSI": None, "SMA_20": None, "EMA_50": None, "MACD": None, "BB_Upper": None, "BB_Lower": None}
@@ -178,7 +195,8 @@ class BusinessLogic:
                 "history": history,
                 "mtf_data": mtf_data,
                 "kpis": kpis,
-                "news": news_items
+                "news": news_items,
+                "walls": walls
             }
             analyzed_assets.append(asset_obj)
             
@@ -267,6 +285,82 @@ class BusinessLogic:
             
         return output.getvalue()
 
-if __name__ == "__main__":
-    logic = BusinessLogic()
-    print(logic.get_market_overview())
+        return output.getvalue()
+
+    def _get_stocks_overview(self, symbols):
+        """Logic for stock market overview."""
+        analyzed_assets = []
+        for symbol in symbols:
+            try:
+                info = self.stocks_ingestor.get_ticker_info(symbol)
+                history = self.stocks_ingestor.get_historical_data(symbol)
+                
+                if info and not history.empty:
+                    # AI prompt for stocks (simpler context for now)
+                    context = f"S&P 500 Stock Analysis | Sector Insight: N/A"
+                    ai_result = self.ai.analyze_asset(symbol, history, context)
+                    
+                    asset_obj = {
+                        "symbol": symbol,
+                        "price": info['price'],
+                        "change_24h": info['change'],
+                        "volume": info['volume'],
+                        "whale_alert": False, # Stocks don't use this logic yet
+                        "signal": ai_result["signal"],
+                        "reasoning": ai_result["reasoning"],
+                        "levels": ai_result["levels"],
+                        "history": history,
+                        "mtf_summary": ["1h: Stocks"], # yf 1h default
+                        "kpis": {} # Stock KPIs simplified
+                    }
+                    analyzed_assets.append(asset_obj)
+            except Exception as e:
+                print(f"DEBUG: Stock process failed for {symbol}: {e}")
+        return analyzed_assets
+
+    def get_market_correlation(self, analyzed_assets):
+        """Calculates correlation of assets vs prime asset (BTC or SPY)."""
+        if len(analyzed_assets) < 2: return 0.0
+        
+        try:
+            # Create a dataframe with close prices
+            price_series = {}
+            for asset in analyzed_assets:
+                if not asset['history'].empty:
+                    # Use last 50 candles
+                    price_series[asset['symbol']] = asset['history']['close'].tail(50).values
+            
+            if not price_series: return 0.0
+            
+            df = pd.DataFrame(price_series)
+            corr_matrix = df.corr()
+            
+            # Simple average correlation coefficient
+            avg_corr = corr_matrix.mean().mean()
+            return avg_corr
+        except:
+            return 0.0
+
+    def process_depth_walls(self, symbol):
+        """Analyzes order book for significant buy/sell walls."""
+        try:
+            depth = self.ingestor.get_order_book(symbol)
+            if not depth: return None
+            
+            bids = pd.DataFrame(depth['bids'], columns=['price', 'qty'], dtype=float)
+            asks = pd.DataFrame(depth['asks'], columns=['price', 'qty'], dtype=float)
+            
+            avg_bid = bids['qty'].mean()
+            avg_ask = asks['qty'].mean()
+            
+            # Find walls (3x average qty)
+            bid_wall = bids[bids['qty'] > avg_bid * 5].head(1)
+            ask_wall = asks[asks['qty'] > avg_ask * 5].head(1)
+            
+            result = {
+                "buy_wall": bid_wall['price'].iloc[0] if not bid_wall.empty else None,
+                "sell_wall": ask_wall['price'].iloc[0] if not ask_wall.empty else None
+            }
+            return result
+        except:
+            return None

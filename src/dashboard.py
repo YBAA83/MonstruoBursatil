@@ -114,7 +114,13 @@ def run_dashboard():
         st.session_state.last_selected_assets = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT"]
 
     # Sidebar
+    st.sidebar.success("v4.1 - MultiMarket Activado")
     st.sidebar.title("🚀 Monstruo Bursátil")
+    st.sidebar.warning("SELECTOR DEBAJO 👇")
+    st.sidebar.markdown("---")
+    
+    # --- MARKET SELECTOR ---
+    market_source = st.sidebar.radio("📚 Seleccionar Mercado", ["Binance", "SP500"], horizontal=True)
     st.sidebar.markdown("---")
 
     # Stats Sections
@@ -166,7 +172,18 @@ def run_dashboard():
         save_stats(0, 0, 0, 0)
         st.rerun()
 
-    # --- AUTO-REFRESH CONFIG ---
+    # --- CORRELATION RADAR ---
+    if st.session_state.market_overview:
+        avg_corr = logic.get_market_correlation(st.session_state.market_overview)
+        corr_color = "#00ff7f" if avg_corr > 0.7 else "#ffaa00" if avg_corr > 0.4 else "#ff4444"
+        st.sidebar.markdown(f"""
+            <div style="background:rgba(255,255,255,0.05); padding:15px; border-radius:10px; border-left: 5px solid {corr_color}; margin-top:10px;">
+                <div style="font-size:0.8em; color:#888;">RADAR DE CORRELACIÓN</div>
+                <div style="font-size:1.2em; font-weight:bold; color:{corr_color};">{avg_corr:.2f}</div>
+                <div style="font-size:0.7em; color:#666;">{'Mercado en Sincronía' if avg_corr > 0.7 else 'Movimiento Independiente'}</div>
+            </div>
+        """, unsafe_allow_html=True)
+    
     st.sidebar.markdown("---")
     auto_refresh = st.sidebar.checkbox("Auto-Actualizar 🔄", value=True)
     refresh_rate = st.sidebar.slider("Intervalo (segundos)", 30, 300, 60, step=10)
@@ -299,6 +316,15 @@ def run_dashboard():
                     </div>
                 """
             
+            # Order Book Walls
+            wall_html = ""
+            walls = asset_data.get('walls')
+            if walls:
+                if walls.get('buy_wall'):
+                    wall_html += f'<div style="font-size:0.7em; color:#00ff7f; background:rgba(0,255,127,0.1); padding:2px 8px; border-radius:5px; margin-top:5px;">🛡️ BUY WALL: ${walls["buy_wall"]:,.2f}</div>'
+                if walls.get('sell_wall'):
+                    wall_html += f'<div style="font-size:0.7em; color:#ff4444; background:rgba(255,68,68,0.1); padding:2px 8px; border-radius:5px; margin-top:5px;">🚧 SELL WALL: ${walls["sell_wall"]:,.2f}</div>'
+
             mtf_html = ""
             if asset_data.get('mtf_summary'):
                 mtf_badges = "".join([f'<span style="background:rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 5px; margin-right: 5px; font-size: 0.7em;">{tf}</span>' for tf in asset_data['mtf_summary']])
@@ -315,6 +341,7 @@ def run_dashboard():
                     <div style="font-size: 2.2em; font-weight: 900; margin: 10px 0;">${price:,.2f}</div>
                     <div style="color: {'#00ff7f' if change > 0 else '#ff4444'}; font-weight: 700;">{change:+.2f}% (24h)</div>
                     {mtf_html}
+                    {wall_html}
                     {performance_html}
                     <div style="margin-top: 20px; font-size: 0.85em; color: #ddd;">"{asset_data['reasoning']}"</div>
                     <div style="margin-top: 10px; font-size: 0.8em; color: #888;">🎯 NIVELES: {asset_data['levels']}</div>
@@ -346,26 +373,32 @@ def run_dashboard():
     # Asset Selection Constants
     default_assets = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]
 
-    def load_data(symbols=None):
+    def load_data(symbols=None, source="Binance"):
         if not symbols: return []
         symbols = list(set(symbols))
         
-        # Fetch Expanded Ticker Data (Fast, no AI)
-        st.session_state.ticker_data = logic.get_ticker_data(limit=15)
-        if st.session_state.market_overview:
+        # Fetch Expanded Ticker Data (Fast, no AI) - Only for Binance
+        if source == "Binance":
+            st.session_state.ticker_data = logic.get_ticker_data(limit=15)
+        
+        if st.session_state.market_overview and source == "Binance":
             for asset in st.session_state.market_overview:
-                symbol = asset['symbol']
-                new_price = float(asset['price'])
-                if symbol in st.session_state.prediction_history:
-                    prev = st.session_state.prediction_history[symbol]
-                    diff = ((new_price - prev['price']) / prev['price']) * 100
-                    hit = (prev['signal'] == "Green" and diff > 0.05) or (prev['signal'] == "Red" and diff < -0.05) or (prev['signal'] == "Yellow" and abs(diff) <= 0.05)
-                    if hit: st.session_state.hits += 1
-                    else: st.session_state.misses += 1
-                st.session_state.prediction_history[symbol] = {"price": new_price, "signal": asset['signal']}
+                symbol = asset.get('symbol')
+                if not symbol: continue
+                try:
+                    new_price = float(asset['price'])
+                    if symbol in st.session_state.prediction_history:
+                        prev = st.session_state.prediction_history[symbol]
+                        diff = ((new_price - prev['price']) / prev['price']) * 100
+                        hit = (prev['signal'] == "Green" and diff > 0.05) or (prev['signal'] == "Red" and diff < -0.05) or (prev['signal'] == "Yellow" and abs(diff) <= 0.05)
+                        if hit: st.session_state.hits += 1
+                        else: st.session_state.misses += 1
+                    st.session_state.prediction_history[symbol] = {"price": new_price, "signal": asset['signal']}
+                except: pass
+
         try:
-            with st.spinner(f"Analizando {len(symbols)} activos..."):
-                new_data = logic.get_market_overview(specific_symbols=symbols)
+            with st.spinner(f"Analizando {len(symbols)} activos en {source}..."):
+                new_data = logic.get_market_overview(specific_symbols=symbols, source=source)
                 for asset in new_data:
                     usage = asset.get('usage', {})
                     if usage:
@@ -382,22 +415,36 @@ def run_dashboard():
             st.error(f"Error: {e}")
             return []
 
-    # Initialize assets and selection
-    default_assets_list = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT"]
-    available_options = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT", "LINKUSDT", "DOTUSDT", "MATICUSDT", "SHIBUSDT", "LTCUSDT", "NEARUSDT"]
-    selected_assets = st.sidebar.multiselect("Activos (Max 12)", available_options, default=default_assets_list[:8])
+    # Initialize assets and selection based on market
+    if market_source == "Binance":
+        available_options = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT", "LINKUSDT", "DOTUSDT", "MATICUSDT", "SHIBUSDT", "LTCUSDT", "NEARUSDT"]
+        default_assets = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT"]
+    else:
+        available_options = ["SPY", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "BRK-B", "UNH", "JNJ", "V", "XOM", "TSM"]
+        default_assets = ["SPY", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL"]
+
+    selected_assets = st.sidebar.multiselect("Activos (Max 12)", available_options, default=default_assets[:8])
     if len(selected_assets) > 12: selected_assets = selected_assets[:12]
 
+    # Handle source change or asset change
+    if 'current_market_source' not in st.session_state: 
+        st.session_state.current_market_source = market_source
+
+    should_reload = False
+    if market_source != st.session_state.current_market_source:
+        st.session_state.current_market_source = market_source
+        should_reload = True
+    
     if selected_assets != st.session_state.last_selected_assets:
-        st.session_state.market_overview = load_data(selected_assets)
         st.session_state.last_selected_assets = selected_assets
+        should_reload = True
+
+    if st.session_state.market_overview is None or should_reload:
+        st.session_state.market_overview = load_data(selected_assets, source=market_source)
         st.rerun()
 
-    if st.session_state.market_overview is None:
-        st.session_state.market_overview = load_data(selected_assets)
-
     if st.button("Actualizar Análisis"):
-        st.session_state.market_overview = load_data(selected_assets)
+        st.session_state.market_overview = load_data(selected_assets, source=market_source)
         st.rerun()
 
     # Render Cards in Dynamic Grid (3 columns per row)
@@ -439,4 +486,10 @@ def run_dashboard():
     st.markdown("Developed with ❤️ by Monstruo Bursátil Team using Google Gemini AI")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        import traceback
+        st.error("🚨 Error Crítico al Iniciar el Dashboard")
+        st.code(traceback.format_exc())
+        st.write("Intenta reiniciar la aplicación en el panel de Streamlit Cloud.")

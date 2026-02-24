@@ -40,8 +40,9 @@ class AIAnalyst:
         Instructions:
         1. Evaluate Multi-Temporal Trends (MTF): If 15m is bullish but 4h is bearish, the signal should be YELLOW (Sideways).
         2. Technical Indicators: Use RSI, MACD, and Bollinger Bands to refine the signal.
-        3. Whale Activity: If a volume spike is mentioned, prioritize a GREEN or RED signal depending on price direction.
-        4. Sentiment: Incorporate headlines into the reasoning.
+        3. Order Book Walls: If BUY WALL or SELL WALL is mentioned, consider it a strong support/resistance level.
+        4. Whale Activity: If a volume spike is mentioned, prioritize a GREEN or RED signal depending on price direction.
+        5. Sentiment: Incorporate headlines into the reasoning.
 
         Output Style:
         Signal: [GREEN/YELLOW/RED]
