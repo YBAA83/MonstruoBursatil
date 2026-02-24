@@ -1,6 +1,7 @@
 from src.data_ingestion import BinanceDataIngestor
 from src.ai_analyst import AIAnalyst
 from src.news_scraper import NewsScraper
+from src.notifier import TelegramNotifier
 import pandas as pd
 import time
 
@@ -9,10 +10,12 @@ class BusinessLogic:
         self.ingestor = BinanceDataIngestor()
         self.ai = AIAnalyst()
         self.news = NewsScraper()
+        self.notifier = TelegramNotifier()
         self.cache = {}
         self.last_update = 0
         self.update_interval = 60
         self.timeframes = ["15m", "1h", "4h"]
+        self.notified_signals = {} # Track last notified signal per symbol
         
     def is_healthy(self):
         """Checks if the data connection is alive."""
@@ -142,7 +145,7 @@ class BusinessLogic:
                 except Exception as e:
                     print(f"DEBUG: Error calculating KPIs for {symbol}: {e}")
 
-            analyzed_assets.append({
+            asset_obj = {
                 "symbol": symbol,
                 "price": row['lastPrice'],
                 "change_24h": price_change,
@@ -155,10 +158,26 @@ class BusinessLogic:
                 "levels": ai_result["levels"],
                 "usage": ai_result.get("usage", {}),
                 "history": history,
-                "mtf_data": mtf_data, # Store all timeframes for chart switching
+                "mtf_data": mtf_data,
                 "kpis": kpis,
                 "news": news_items
-            })
+            }
+            analyzed_assets.append(asset_obj)
+            
+            # Send Notification if Signal is High Conviction and changed
+            if asset_obj['signal'] in ["Green", "Red"]:
+                last_sig = self.notified_signals.get(symbol)
+                if last_sig != asset_obj['signal']:
+                    self.notifier.send_signal(
+                        symbol=symbol,
+                        signal=asset_obj['signal'],
+                        price=asset_obj['price'],
+                        reasoning=asset_obj['reasoning']
+                    )
+                    self.notified_signals[symbol] = asset_obj['signal']
+            elif asset_obj['signal'] == "Yellow":
+                # Clear notified status if it goes back to neutral
+                self.notified_signals[symbol] = "Yellow"
             
         # Sort by volume descending
         analyzed_assets.sort(key=lambda x: x.get('volume', 0), reverse=True)
