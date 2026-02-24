@@ -118,7 +118,7 @@ def run_dashboard():
     st.sidebar.markdown("---")
     
     # --- MARKET SELECTOR ---
-    market_source = st.sidebar.radio("📚 Seleccionar Mercado", ["Binance", "SP500"], horizontal=True)
+    market_source = st.sidebar.radio("📚 Seleccionar Mercado", ["Binance", "Nasdaq", "Forex", "SP500"], horizontal=True)
     st.sidebar.markdown("---")
 
     # Stats Sections
@@ -204,9 +204,15 @@ def run_dashboard():
     st.sidebar.markdown("Status: **Live** 🟢")
 
     # Helper for icons
-    def get_crypto_icon(symbol):
-        icons = {"BTC": "₿", "ETH": "Ξ", "SOL": "◎", "BNB": "BNB"}
-        return icons.get(symbol.replace("USDT", ""), "💰")
+    def get_asset_icon(symbol):
+        icons = {
+            "BTC": "₿", "ETH": "Ξ", "SOL": "◎", "BNB": "BNB",
+            "EURUSD=X": "🇪🇺🇺🇸", "GBPUSD=X": "🇬🇧🇺🇸", "USDJPY=X": "🇺🇸🇯🇵",
+            "AAPL": "🍎", "NVDA": "🔌", "TSLA": "🚗", "AMZN": "📦", "MSFT": "💻", "GOOGL": "🔍",
+            "QQQ": "📊", "SPY": "🏦"
+        }
+        clean_symbol = symbol.replace("USDT", "")
+        return icons.get(clean_symbol, "💰")
 
     # Function for Ticker
     def render_ticker(ticker_data):
@@ -219,7 +225,7 @@ def run_dashboard():
             change = asset['change']
             color = "#00ff7f" if change > 0 else "#ff4444"
             arrow = "▲" if change > 0 else "▼"
-            ticker_html += f'<span class="ticker-item">{get_crypto_icon(asset["symbol"])} {symbol}: <span style="color:white">${price:,.2f}</span> <span style="color:{color}">{arrow} {abs(change):.2f}%</span></span>'
+            ticker_html += f'<span class="ticker-item">{get_asset_icon(asset["symbol"])} {symbol}: <span style="color:white">${price:,.2f}</span> <span style="color:{color}">{arrow} {abs(change):.2f}%</span></span>'
         ticker_html += '</div></div>'
         st.html(ticker_html)
 
@@ -333,7 +339,7 @@ def run_dashboard():
                 <div class="glass-card">
                     {whale_html}
                     <div style="display: flex; justify-content: space-between;">
-                        <span style="font-weight: 900; font-size: 1.5em;">{get_crypto_icon(symbol)} {symbol.replace("USDT","")}</span>
+                        <span style="font-weight: 900; font-size: 1.5em;">{get_asset_icon(symbol)} {symbol.replace("USDT","")}</span>
                         <span style="color: {signal_color}; font-weight: 900;">{signal_text}</span>
                     </div>
                     <div style="font-size: 2.2em; font-weight: 900; margin: 10px 0;">${price:,.2f}</div>
@@ -417,7 +423,13 @@ def run_dashboard():
     if market_source == "Binance":
         available_options = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT", "LINKUSDT", "DOTUSDT", "MATICUSDT", "SHIBUSDT", "LTCUSDT", "NEARUSDT"]
         default_assets = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT"]
-    else:
+    elif market_source == "Nasdaq":
+        available_options = ["QQQ", "AAPL", "MSFT", "NVDA", "TSLA", "META", "AMZN", "GOOGL", "AMD", "NFLX", "GOOG", "INTC", "PYPL", "CSCO"]
+        default_assets = ["QQQ", "AAPL", "MSFT", "NVDA", "TSLA", "META"]
+    elif market_source == "Forex":
+        available_options = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "USDCAD=X", "USDCHF=X", "NZDUSD=X", "EURGBP=X", "EURJPY=X", "BTCUSD=X"]
+        default_assets = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "USDCAD=X"]
+    else: # SP500
         available_options = ["SPY", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "BRK-B", "UNH", "JNJ", "V", "XOM", "TSM"]
         default_assets = ["SPY", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL"]
 

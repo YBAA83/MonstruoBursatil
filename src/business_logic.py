@@ -26,18 +26,24 @@ class BusinessLogic:
     def get_market_overview(self, specific_symbols=None, source="Binance"):
         """
         Orchestrates the data flow:
-        1. Fetch top movers OR specific symbols (Binance or Stocks).
+        1. Fetch top movers OR specific symbols (Binance, Stocks, Nasdaq, Forex).
         2. For selected assets, fetch news and historical data.
         3. Run AI analysis.
         4. Return structured data for Dashboard.
         """
         print(f"DEBUG: Executing get_market_overview for {source}...")
         
-        analyzed_assets = []
-        
-        if source == "SP500":
-            # Default S&P 500 tickers if none provided
-            symbols = specific_symbols if specific_symbols else ["SPY", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL"]
+        # General handle for Yfinance-based sources
+        if source in ["SP500", "Nasdaq", "Forex"]:
+            if not specific_symbols:
+                if source == "SP500":
+                    symbols = ["SPY", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL"]
+                elif source == "Nasdaq":
+                    symbols = ["QQQ", "NVDA", "TSLA", "META", "AMD", "NFLX"]
+                else: # Forex
+                    symbols = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "BTCUSD=X"]
+            else:
+                symbols = specific_symbols
             return self._get_stocks_overview(symbols)
 
         # Original Binance Logic
