@@ -23,7 +23,7 @@ class BusinessLogic:
         """Checks if the data connection is alive."""
         return self.ingestor and self.ingestor.client is not None
 
-    def get_market_overview(self, specific_symbols=None, source="Binance"):
+    def get_market_overview(self, specific_symbols=None, source="Binance", image_bytes=None):
         """
         Orchestrates the data flow:
         1. Fetch top movers OR specific symbols (Binance, Stocks, Nasdaq, Forex).
@@ -44,7 +44,7 @@ class BusinessLogic:
                     symbols = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "BTCUSD=X"]
             else:
                 symbols = specific_symbols
-            return self._get_stocks_overview(symbols)
+            return self._get_stocks_overview(symbols, image_bytes=image_bytes)
 
         # Original Binance Logic
         if specific_symbols:
@@ -184,7 +184,7 @@ class BusinessLogic:
             # AI Analysis
             print(f"DEBUG: Analyzing {symbol} with AI...")
             kpi_context = f" | RSI: {kpis['RSI']:.1f} | MACD: {kpis['MACD']:.4f} | BB: [{kpis['BB_Lower']:.2f} - {kpis['BB_Upper']:.2f}]" if kpis['RSI'] else ""
-            ai_result = self.ai.analyze_asset(symbol, history, full_context + kpi_context)
+            ai_result = self.ai.analyze_asset(symbol, history, full_context + kpi_context, image_bytes=image_bytes)
             
             asset_obj = {
                 "symbol": symbol,
@@ -308,7 +308,7 @@ class BusinessLogic:
 
         return output.getvalue()
 
-    def _get_stocks_overview(self, symbols):
+    def _get_stocks_overview(self, symbols, image_bytes=None):
         """Logic for stock market overview."""
         analyzed_assets = []
         for symbol in symbols:
@@ -319,7 +319,7 @@ class BusinessLogic:
                 if info and not history.empty:
                     # AI prompt for stocks
                     context = f"Tradicional Market Analysis | Symbol: {symbol}"
-                    ai_result = self.ai.analyze_asset(symbol, history, context)
+                    ai_result = self.ai.analyze_asset(symbol, history, context, image_bytes=image_bytes)
                     
                     asset_obj = {
                         "symbol": symbol,

@@ -121,6 +121,16 @@ def run_dashboard():
     market_source = st.sidebar.radio("📚 Seleccionar Mercado", ["Binance", "Nasdaq", "Forex", "SP500"], horizontal=True)
     st.sidebar.markdown("---")
 
+    # --- VISION UPLOAD ---
+    with st.sidebar.expander("👁️ Análisis Visual (Beta)"):
+        uploaded_chart = st.file_uploader("Subir captura de TradingView", type=['png', 'jpg', 'jpeg'])
+        if uploaded_chart:
+            st.image(uploaded_chart, caption="Gráfico cargado", use_container_width=True)
+            image_bytes = uploaded_chart.getvalue()
+        else:
+            image_bytes = None
+    st.sidebar.markdown("---")
+
     # Stats Sections
     st.sidebar.subheader("📊 Marcador Histórico")
     col_h, col_m = st.sidebar.columns(2)
@@ -377,7 +387,7 @@ def run_dashboard():
     # Asset Selection Constants
     default_assets = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]
 
-    def load_data(symbols=None, source="Binance"):
+    def load_data(symbols=None, source="Binance", chart_image=None):
         if not symbols: return []
         symbols = list(set(symbols))
         
@@ -401,7 +411,7 @@ def run_dashboard():
 
         try:
             with st.spinner(f"Analizando {len(symbols)} activos en {source}..."):
-                new_data = logic.get_market_overview(specific_symbols=symbols, source=source)
+                new_data = logic.get_market_overview(specific_symbols=symbols, source=source, image_bytes=chart_image)
                 for asset in new_data:
                     usage = asset.get('usage', {})
                     if usage:
@@ -449,7 +459,7 @@ def run_dashboard():
         should_reload = True
 
     if st.session_state.market_overview is None or should_reload:
-        st.session_state.market_overview = load_data(selected_assets, source=market_source)
+        st.session_state.market_overview = load_data(selected_assets, source=market_source, chart_image=image_bytes)
         st.rerun()
 
     if st.button("Actualizar Análisis"):

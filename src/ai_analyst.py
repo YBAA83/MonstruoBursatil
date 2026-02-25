@@ -13,9 +13,9 @@ class AIAnalyst:
         else:
             self.client = genai.Client(api_key=api_key)
 
-    def analyze_asset(self, symbol, price_data, news_sentiment="Neutral"):
+    def analyze_asset(self, symbol, price_data, context="Neutral", image_bytes=None):
         """
-        Analyzes an asset using Gemini based on price action and news sentiment.
+        Analyzes an asset using Gemini based on price action, news sentiment, and optional chart image.
         Returns a structured response: Signal (Green/Yellow/Red), Reasoning, and Key Levels.
         """
         if not self.client:
@@ -26,34 +26,43 @@ class AIAnalyst:
             }
 
         # Construct Prompt
+        vision_instruction = "IMPORTANT: An image of the chart is provided. Use it to identify visual patterns (triangles, channels, support zones) and combine it with the numerical data." if image_bytes else ""
+        
         prompt = f"""
         You are a seasoned financial analyst for the "Monstruo Bursátil" ecosystem. 
-        Your task is to analyze the following cryptocurrency asset based on provided data keys.
+        Your task is to analyze the following asset based on provided data and optional visual chart.
 
         Asset: {symbol}
-        Analysis Data Context (MTF Trends, Indicators, Sentiment):
-        {news_sentiment}
+        Analysis Data Context (MTF Trends, Indicators, Sentiment, Walls):
+        {context}
 
-        Recent Price Data (OHLCV last 5 hours of primary timeframe):
-        {price_data.tail().to_string()}
+        Recent Price Data (OHLCV last candles):
+        {price_data.tail(10).to_string()}
+
+        {vision_instruction}
 
         Instructions:
-        1. Evaluate Multi-Temporal Trends (MTF): If 15m is bullish but 4h is bearish, the signal should be YELLOW (Sideways).
-        2. Technical Indicators: Use RSI, MACD, and Bollinger Bands to refine the signal.
-        3. Order Book Walls: If BUY WALL or SELL WALL is mentioned, consider it a strong support/resistance level.
-        4. Whale Activity: If a volume spike is mentioned, prioritize a GREEN or RED signal depending on price direction.
-        5. Sentiment: Incorporate headlines into the reasoning.
+        1. Evaluate Multi-Temporal Trends (MTF) and Technical Indicators (RSI, MACD, BB).
+        2. Whale Activity & Order Book: Incorporate volume spikes and walls.
+        3. Visual Patterns: If an image is provided, describe the structure you see.
+        4. Final Judgment: Combine visual and technical data for the signal.
 
         Output Style:
         Signal: [GREEN/YELLOW/RED]
-        Reasoning: [TEXT - Concise max 2 sentences. Reference indicators if they justify the signal.]
+        Reasoning: [TEXT - Concise max 3 sentences. Mention specific patterns or data points used.]
         Levels: [TEXT - Define support and resistance]
         """
         
         try:
+            contents = [prompt]
+            if image_bytes:
+                # The google-genai SDK 1.0+ handles bytes directly in contents list if wrapped or as a Part
+                from google.genai import types
+                contents.append(types.Part.from_bytes(data=image_bytes, mime_type="image/png"))
+
             response = self.client.models.generate_content(
                 model="gemini-flash-latest",
-                contents=prompt
+                contents=contents
             )
             parsed = self._parse_response(response.text)
             
