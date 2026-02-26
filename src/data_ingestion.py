@@ -114,6 +114,22 @@ class BinanceDataIngestor:
         except:
             return pd.DataFrame()
 
+    def get_long_history(self, symbol, interval="1h", days=30):
+        """Fetches longer history for backtesting with caching."""
+        cache_file = f"cache_{symbol}_{interval}_{days}d.csv"
+        if os.path.exists(cache_file):
+            df = pd.read_csv(cache_file)
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            return df
+
+        limit = 1000 # Max for rest api often
+        if days > 30: limit = 1000 # Need more logic for extremely long history
+        
+        df = self.get_historical_data(symbol, interval=interval, limit=limit)
+        if not df.empty:
+            df.to_csv(cache_file, index=False)
+        return df
+
     def get_order_book(self, symbol, limit=100):
         """Fetches order book depth."""
         data = None
@@ -144,7 +160,7 @@ class StocksDataIngestor:
             # Map common trading intervals to yfinance
             yf_interval = "1h"
             if interval == "15m": yf_interval = "15m"
-            elif interval == "4h": yf_interval = "1h" # yf doesn't support 4h directly well, use 1h
+            elif interval == "4h": yf_interval = "1h" 
             
             ticker = self.yf.Ticker(symbol)
             df = ticker.history(period=period, interval=yf_interval)
@@ -165,6 +181,15 @@ class StocksDataIngestor:
         except Exception as e:
             print(f"DEBUG: yfinance fetch failed for {symbol}: {e}")
             return pd.DataFrame()
+
+    def get_long_history(self, symbol, interval="1h", days=30):
+        """Fetches longer history for stocks."""
+        period = "1mo"
+        if days > 30: period = "6mo"
+        elif days > 7: period = "1mo"
+        else: period = "5d"
+        
+        return self.get_historical_data(symbol, interval=interval, period=period)
 
     def get_ticker_info(self, symbol):
         """Fetches basic price/change info."""

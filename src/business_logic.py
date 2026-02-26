@@ -2,6 +2,7 @@ from src.data_ingestion import BinanceDataIngestor, StocksDataIngestor
 from src.ai_analyst import AIAnalyst
 from src.news_scraper import NewsScraper
 from src.notifier import TelegramNotifier
+from src.backtester import Backtester
 import pandas as pd
 import time
 import io
@@ -13,11 +14,18 @@ class BusinessLogic:
         self.ai = AIAnalyst()
         self.news = NewsScraper()
         self.notifier = TelegramNotifier()
+        self.backtester = Backtester(self.ai, self.ingestor)
         self.cache = {}
         self.last_update = 0
         self.update_interval = 60
         self.timeframes = ["15m", "1h", "4h"]
         self.notified_signals = {} # Track last notified signal per symbol
+
+    def run_backtest(self, symbol, source="Binance", interval="1h", days=7):
+        """Bridge to run backtest simulation."""
+        current_ingestor = self.ingestor if source == "Binance" else self.stocks_ingestor
+        self.backtester.ingestor = current_ingestor
+        return self.backtester.run_simulation(symbol, interval=interval, days=days)
         
     def is_healthy(self):
         """Checks if the data connection is alive."""

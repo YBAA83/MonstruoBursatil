@@ -49,45 +49,95 @@ def run_dashboard():
     from streamlit_autorefresh import st_autorefresh
     # Config moved to main()
 
-    # Custom CSS for "Glassmorphism"
+    # Enhanced Futuristic glassmorphism CSS
     st.markdown("""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        html, body, [class*="st-"] { font-family: 'Inter', sans-serif; }
-        .glass-card {
-            background: rgba(30, 30, 35, 0.7);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            padding: 24px;
-            color: white;
-            margin-bottom: 25px;
-            transition: transform 0.3s ease;
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&family=Inter:wght@300;400;700;900&display=swap');
+        
+        :root {
+            --neon-green: #00ffbd;
+            --neon-red: #ff3e3e;
+            --neon-yellow: #ffcc00;
+            --glass-bg: rgba(15, 15, 20, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.08);
         }
 
-        @keyframes scroll {
-            0% { transform: translateX(100%); }
-            100% { transform: translateX(-100%); }
+        html, body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, .stHeader, [data-testid="stHeader"] { font-family: 'Outfit', sans-serif !important; font-weight: 900; }
+        
+        /* Specific text targeting to avoid breaking icons */
+        .stMarkdown p, .stText, .stCaption, label, [data-testid="stWidgetLabel"] p {
+            font-family: 'Inter', sans-serif !important;
         }
-        .ticker-wrap {
-            width: 100%;
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 28px;
+            color: white;
+            margin-bottom: 25px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            position: relative;
             overflow: hidden;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            margin-bottom: 20px;
         }
-        .ticker {
-            display: inline-block;
-            white-space: nowrap;
-            padding-right: 100%;
-            animation: scroll 30s linear infinite;
+        .glass-card:hover {
+            transform: translateY(-8px) scale(1.01);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
         }
-        .ticker-item {
-            display: inline-block;
-            padding: 0 40px;
+
+        /* Signal Glows */
+        .signal-green { box-shadow: 0 0 20px rgba(0, 255, 189, 0.15); border-left: 6px solid var(--neon-green); }
+        .signal-red { box-shadow: 0 0 20px rgba(255, 62, 62, 0.15); border-left: 6px solid var(--neon-red); }
+        .signal-yellow { box-shadow: 0 0 20px rgba(255, 204, 0, 0.1); border-left: 6px solid var(--neon-yellow); }
+
+        /* Animations */
+        @keyframes pulse-whale {
+            0% { box-shadow: 0 0 0 0 rgba(255, 75, 31, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(255, 75, 31, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 75, 31, 0); }
+        }
+        .whale-badge {
+            animation: pulse-whale 2s infinite;
+            background: linear-gradient(90deg, #ff4b1f, #ff9068);
+            color: white;
+            padding: 6px 15px;
+            border-radius: 12px;
             font-weight: 900;
-            font-size: 1.1em;
+            font-size: 0.75em;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        @keyframes slide-up {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-in { animation: slide-up 0.6s ease-out forwards; }
+
+        /* Ticker refinement */
+        .ticker-wrap {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 12px 0;
+            margin-top: -30px;
+        }
+
+        /* Sidebar Expander Styling - NO FONT OVERRIDE ON SUMMARY */
+        .stExpander {
+            background: rgba(255, 255, 255, 0.03) !important;
+            border: 1px solid var(--glass-border) !important;
+            border-radius: 12px !important;
+            margin-bottom: 15px !important;
+        }
+        
+        /* High-end animation for cards */
+        .animate-in {
+            animation: slide-up 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -122,10 +172,11 @@ def run_dashboard():
     st.sidebar.markdown("---")
 
     # --- VISION UPLOAD ---
-    with st.sidebar.expander("👁️ Análisis Visual (Beta)"):
-        uploaded_chart = st.file_uploader("Subir captura de TradingView", type=['png', 'jpg', 'jpeg'])
+    with st.sidebar.expander("ANALISTA VISUAL", expanded=False):
+        st.markdown("<div style='font-size:0.8em; color:#888; margin-bottom:10px;'>Carga un gráfico para detección de patrones IA.</div>", unsafe_allow_html=True)
+        uploaded_chart = st.file_uploader("Subir imagen", type=['png', 'jpg', 'jpeg'], label_visibility="collapsed")
         if uploaded_chart:
-            st.image(uploaded_chart, caption="Gráfico cargado", use_container_width=True)
+            st.image(uploaded_chart, caption="Gráfico Cargado", use_container_width=True)
             image_bytes = uploaded_chart.getvalue()
         else:
             image_bytes = None
@@ -134,24 +185,46 @@ def run_dashboard():
     # Stats Sections
     st.sidebar.subheader("📊 Marcador Histórico")
     col_h, col_m = st.sidebar.columns(2)
-    col_h.metric("Aciertos ✅", st.session_state.hits)
-    col_m.metric("Fallos ❌", st.session_state.misses)
+    
+    with col_h:
+        st.markdown(f"""
+            <div style="background:rgba(0,255,189,0.05); padding:10px; border-radius:12px; border: 1px solid rgba(0,255,189,0.2); text-align:center;">
+                <div style="font-size:0.7em; color:#888;">ACIERTOS</div>
+                <div style="font-size:1.4em; font-weight:900; color:var(--neon-green);">{st.session_state.hits}</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+    with col_m:
+        st.markdown(f"""
+            <div style="background:rgba(255,62,62,0.05); padding:10px; border-radius:12px; border: 1px solid rgba(255,62,62,0.2); text-align:center;">
+                <div style="font-size:0.7em; color:#888;">FALLOS</div>
+                <div style="font-size:1.4em; font-weight:900; color:var(--neon-red);">{st.session_state.misses}</div>
+            </div>
+        """, unsafe_allow_html=True)
 
     total_hist = st.session_state.hits + st.session_state.misses
     if total_hist > 0:
         winrate_hist = (st.session_state.hits / total_hist) * 100
+        st.sidebar.markdown(f"<div style='margin-top:10px; font-size:0.8em; text-align:right; color:#888;'>Win Rate: {winrate_hist:.1f}%</div>", unsafe_allow_html=True)
         st.sidebar.progress(winrate_hist / 100)
-        st.sidebar.caption(f"Tasa de Acierto: {winrate_hist:.1f}%")
 
     st.sidebar.markdown("---")
     st.sidebar.subheader("💎 Consumo de API")
     total_tokens = st.session_state.total_input + st.session_state.total_output
     cost_usd = (st.session_state.total_input / 1_000_000 * 0.10) + (st.session_state.total_output / 1_000_000 * 0.30)
-    cost_eur = cost_usd * 0.94
-
-    st.sidebar.metric("Tokens", f"{total_tokens:,}")
-    st.sidebar.write(f"💵 ${cost_usd:,.4f} USD")
-    st.sidebar.write(f"💶 {cost_eur:,.4f} EUR")
+    
+    st.sidebar.markdown(f"""
+        <div style="background:var(--glass-bg); padding:15px; border-radius:15px; border: 1px solid var(--glass-border);">
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <span style="color:#888; font-size:0.8em;">Tokens Total</span>
+                <span style="font-weight:700;">{total_tokens:,}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+                <span style="color:#888; font-size:0.8em;">Coste Est.</span>
+                <span style="color:var(--neon-green); font-weight:700;">${cost_usd:,.4f}</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
     # Report Section
     st.sidebar.markdown("---")
@@ -233,51 +306,50 @@ def run_dashboard():
             symbol = asset['symbol'].replace("USDT", "")
             price = asset['price']
             change = asset['change']
-            color = "#00ff7f" if change > 0 else "#ff4444"
+            color = "var(--neon-green)" if change > 0 else "var(--neon-red)"
             arrow = "▲" if change > 0 else "▼"
-            ticker_html += f'<span class="ticker-item">{get_asset_icon(asset["symbol"])} {symbol}: <span style="color:white">${price:,.2f}</span> <span style="color:{color}">{arrow} {abs(change):.2f}%</span></span>'
+            ticker_html += f'<span class="ticker-item" style="font-family:\'Outfit\';">{get_asset_icon(asset["symbol"])} {symbol}: <span style="color:white">${price:,.2f}</span> <span style="color:{color}; font-weight:900;">{arrow} {abs(change):.2f}%</span></span>'
         ticker_html += '</div></div>'
         st.html(ticker_html)
 
     # Main Content
-    st.title("🚀 Monstruo Bursátil Dashboard")
-    st.caption("AI-Powered Trading Signals | Real-Time Financial Indicators")
+    # Main Content Header
+    st.markdown("""
+        <div style="margin-bottom: 40px; text-align:center;">
+            <h1 style="font-size: 3.5em; margin-bottom: 0px; background: linear-gradient(90deg, #fff, #888); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Monstruo Bursátil</h1>
+            <p style="color: #666; font-size: 1.1em; letter-spacing: 2px; text-transform: uppercase;">AI-Powered Terminal v2.0</p>
+        </div>
+    """, unsafe_allow_html=True)
 
-    # Connection Health Check
-    if not logic.is_healthy():
-        st.warning("⚠️ **Conexión con Binance Restringida**")
-        with st.expander("🛠️ Panel de Diagnóstico"):
-            tld_val = getattr(logic.ingestor, 'tld', 'N/A')
-            sdk_val = getattr(logic.ingestor, 'sdk_ready', False)
-            st.write(f"**Región (TLD):** `{tld_val}`")
-            st.write(f"**SDK Binance:** `{'🟢 Conectado' if sdk_val else '🔴 Bloqueado'}`")
-            
-            # Test General Internet
-            try:
-                res = requests.get("https://www.google.com", timeout=3)
-                st.write(f"**Internet General:** `🟢 OK` (Status: {res.status_code})")
-            except Exception as e:
-                st.write(f"**Internet General:** `🔴 FALLO` ({e})")
+    tab_radar, tab_backtest = st.tabs(["📡 Radar en Vivo", "🧪 Simulador (Backtest)"])
 
-            if 'last_binance_error' in st.session_state:
-                st.error(f"**Error Técnico Binance:** {st.session_state['last_binance_error']}")
+    with tab_radar:
+        # Connection Health Check
+        if not logic.is_healthy():
+            st.markdown("""
+                <div style="background:rgba(255,62,62,0.1); border:1px solid var(--neon-red); padding:15px; border-radius:15px; margin-bottom:20px;">
+                    <div style="color:var(--neon-red); font-weight:900; font-family:'Outfit';">🚨 ESTADO CRÍTICO: CONEXIÓN RESTRINGIDA</div>
+                    <div style="font-size:0.8em; color:#888;">Binance API unreachable or restricted. Switch to secondary markets or check proxy.</div>
+                </div>
+            """, unsafe_allow_html=True)
             
-            st.info("""
-            **Guía de Solución:**
-            1. Si el SDK está 🔴, es normal en la nube.
-            2. Si el error es `HTTP 451`, Binance bloquea esta IP por ley.
-            3. Prueba cambiar `BINANCE_TLD = "us"` por `"com"` (o viceversa) en los Secrets.
-            """)
-            
-            col_a, col_b = st.columns(2)
-            with col_a:
-                if st.button("🔄 Re-conectar"):
-                    st.session_state.market_overview = None
-                    st.rerun()
-            with col_b:
-                if st.button("🧹 Limpiar Caché"):
-                    st.cache_resource.clear()
-                    st.rerun()
+            with st.expander("🛠️ Tactical Diagnosis", expanded=False):
+                tld_val = getattr(logic.ingestor, 'tld', 'N/A')
+                sdk_val = getattr(logic.is_healthy(), 'sdk_ready', False)
+                
+                col_d1, col_d2 = st.columns(2)
+                col_d1.markdown(f"**Region TLD**: `{tld_val}`")
+                col_d2.markdown(f"**SDK Status**: `{'🟢 READY' if sdk_val else '🔴 ERROR'}`")
+                
+                if 'last_binance_error' in st.session_state:
+                    st.error(f"Last Error: {st.session_state['last_binance_error']}")
+                
+                # Action Buttons
+                btn_col1, btn_col2 = st.columns(2)
+                with btn_col1:
+                    if st.button("🔄 Reload Core"): st.rerun()
+                with btn_col2:
+                    if st.button("🧹 Flush Cache"): st.cache_resource.clear(); st.rerun()
 
     # Render Ticker
     if st.session_state.ticker_data:
@@ -295,11 +367,11 @@ def run_dashboard():
             
             # Style Signal
             signal_map = {
-                "Green": ("🟢 COMPRAR", "#00ff7f", "rgba(0, 255, 127, 0.15)"),
-                "Red": ("🔴 VENDER", "#ff4444", "rgba(255, 68, 68, 0.15)"),
-                "Yellow": ("🟡 MANTENER", "#ffcc00", "rgba(255, 204, 0, 0.15)")
+                "Green": ("🟢 COMPRAR", "var(--neon-green)", "signal-green"),
+                "Red": ("🔴 VENDER", "var(--neon-red)", "signal-red"),
+                "Yellow": ("🟡 MANTENER", "var(--neon-yellow)", "signal-yellow")
             }
-            signal_text, signal_color, signal_bg = signal_map.get(signal, ("⚪...", "#aaa", "rgba(255,255,255,0.1)"))
+            signal_text, signal_color, signal_class = signal_map.get(signal, ("⚪...", "#aaa", ""))
 
             # Performance logic
             performance_html = ""
@@ -308,12 +380,12 @@ def run_dashboard():
                 p_diff = ((price - prev['price']) / prev['price']) * 100
                 hit = (prev['signal'] == "Green" and p_diff > 0.02) or (prev['signal'] == "Red" and p_diff < -0.02) or (prev['signal'] == "Yellow" and abs(p_diff) <= 0.02)
                 
-                perf_color = "#00ff7f" if hit else "#ff4444"
+                perf_color = "var(--neon-green)" if hit else "var(--neon-red)"
                 pl_amount = (p_diff / 100) * investment_size
                 
                 performance_html = f"""
-                    <div style="border: 1px solid {perf_color}55; background: rgba(0,0,0,0.4); padding: 15px; border-radius: 15px; margin-top: 20px;">
-                        <div style="font-size: 0.7em; color: #aaa;">RESULTADO PREVIO ({prev['signal']})</div>
+                    <div style="border: 1px solid {perf_color}44; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 18px; margin-top: 20px;">
+                        <div style="font-size: 0.7em; color: #888; font-family: 'Outfit';">RESULTADO PREVIO ({prev['signal']})</div>
                         <div style="display: flex; justify-content: space-between; margin-top: 5px; color: {perf_color}; font-weight: 700;">
                             <span>{p_diff:+.2f}%</span>
                             <span>P/L: {pl_amount:+.2f} USDT</span>
@@ -325,7 +397,7 @@ def run_dashboard():
             whale_html = ""
             if asset_data.get('whale_alert'):
                 whale_html = f"""
-                    <div style="background: linear-gradient(90deg, #ff4b1f, #ff9068); color: white; padding: 5px 15px; border-radius: 10px; font-weight: 900; font-size: 0.8em; margin-bottom: 15px; text-align: center; border: 1px solid white;">
+                    <div class="whale-badge" style="margin-bottom: 20px; text-align: center;">
                         🚨 WHALE ACTIVITY: {asset_data.get('vol_anomaly', 0):.1f}x Vol!
                     </div>
                 """
@@ -335,30 +407,30 @@ def run_dashboard():
             walls = asset_data.get('walls')
             if walls:
                 if walls.get('buy_wall'):
-                    wall_html += f'<div style="font-size:0.7em; color:#00ff7f; background:rgba(0,255,127,0.1); padding:2px 8px; border-radius:5px; margin-top:5px;">🛡️ BUY WALL: ${walls["buy_wall"]:,.2f}</div>'
+                    wall_html += f'<div style="font-size:0.7em; color:var(--neon-green); background:rgba(0,255,189,0.1); padding:4px 10px; border-radius:8px; margin-top:8px; font-family: \'Outfit\';">🛡️ BUY WALL: ${walls["buy_wall"]:,.2f}</div>'
                 if walls.get('sell_wall'):
-                    wall_html += f'<div style="font-size:0.7em; color:#ff4444; background:rgba(255,68,68,0.1); padding:2px 8px; border-radius:5px; margin-top:5px;">🚧 SELL WALL: ${walls["sell_wall"]:,.2f}</div>'
+                    wall_html += f'<div style="font-size:0.7em; color:var(--neon-red); background:rgba(255,62,62,0.1); padding:4px 10px; border-radius:8px; margin-top:8px; font-family: \'Outfit\';">🚧 SELL WALL: ${walls["sell_wall"]:,.2f}</div>'
 
             mtf_html = ""
             if asset_data.get('mtf_summary'):
-                mtf_badges = "".join([f'<span style="background:rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 5px; margin-right: 5px; font-size: 0.7em;">{tf}</span>' for tf in asset_data['mtf_summary']])
-                mtf_html = f'<div style="margin-top: 10px;">{mtf_badges}</div>'
+                mtf_badges = "".join([f'<span style="background:rgba(255,255,255,0.08); padding: 4px 10px; border-radius: 8px; margin-right: 6px; font-size: 0.7em; font-family: \'Outfit\';">{tf}</span>' for tf in asset_data['mtf_summary']])
+                mtf_html = f'<div style="margin-top: 15px;">{mtf_badges}</div>'
 
-            # Performance logic
+            # Build Card
             card_html = textwrap.dedent(f"""
-                <div class="glass-card">
+                <div class="glass-card {signal_class} animate-in">
                     {whale_html}
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="font-weight: 900; font-size: 1.5em;">{get_asset_icon(symbol)} {symbol.replace("USDT","")}</span>
-                        <span style="color: {signal_color}; font-weight: 900;">{signal_text}</span>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <span style="font-weight: 900; font-size: 1.6em; font-family: 'Outfit';">{get_asset_icon(symbol)} {symbol.replace("USDT","")}</span>
+                        <span style="color: {signal_color}; font-weight: 900; font-size: 0.9em; letter-spacing: 1px;">{signal_text}</span>
                     </div>
-                    <div style="font-size: 2.2em; font-weight: 900; margin: 10px 0;">${price:,.2f}</div>
-                    <div style="color: {'#00ff7f' if change > 0 else '#ff4444'}; font-weight: 700;">{change:+.2f}% (24h)</div>
+                    <div style="font-size: 2.4em; font-weight: 900; margin: 15px 0; font-family: 'Outfit';">${price:,.2f}</div>
+                    <div style="color: {'var(--neon-green)' if change > 0 else 'var(--neon-red)'}; font-weight: 700; font-size: 1.1em;">{change:+.2f}% <span style="font-size: 0.7em; font-weight: 400; color: #888;">(24h)</span></div>
                     {mtf_html}
                     {wall_html}
                     {performance_html}
-                    <div style="margin-top: 20px; font-size: 0.85em; color: #ddd;">"{asset_data['reasoning']}"</div>
-                    <div style="margin-top: 10px; font-size: 0.8em; color: #888;">🎯 NIVELES: {asset_data['levels']}</div>
+                    <div style="margin-top: 25px; font-size: 0.9em; color: #ccc; line-height: 1.5; font-style: italic;">"{asset_data['reasoning']}"</div>
+                    <div style="margin-top: 15px; font-size: 0.75em; color: #777; font-family: 'Outfit'; letter-spacing: 0.5px;">🎯 NIVELES CLAVE: {asset_data['levels']}</div>
                 </div>
             """).strip()
             st.html(card_html)
@@ -477,7 +549,7 @@ def run_dashboard():
 
     # News Section (Adaptive Grid)
     st.markdown("---")
-    st.subheader("🗞️ Últimas Noticias de Impacto")
+    st.subheader("📡 Feed de Inteligencia (Noticias)")
     if st.session_state.market_overview:
         assets_with_news = [a for a in st.session_state.market_overview if isinstance(a, dict) and a.get('news')]
         if assets_with_news:
@@ -488,17 +560,74 @@ def run_dashboard():
                         row_asset = assets_with_news[i+j]
                         with cols[j]:
                             symbol_display = str(row_asset.get('symbol', '???')).replace('USDT','')
-                            with st.expander(f"Noticias {symbol_display}", expanded=False):
+                            with st.expander(f"INTEL: {symbol_display}", expanded=False):
                                 asset_news = row_asset.get('news', [])
                                 for n in asset_news:
                                     if not isinstance(n, dict): continue
                                     n_title = n.get('title', 'Sin título')
                                     n_url = n.get('url', '#')
                                     n_sentiment = n.get('sentiment', 'Neutral')
-                                    st.markdown(f"🔹 **{n_title}**")
-                                    st.caption(f"Sentiment: {n_sentiment} | [Link]({n_url})")
+                                    
+                                    sent_color = "var(--neon-green)" if "Bull" in n_sentiment or "Positive" in n_sentiment else "var(--neon-red)" if "Bear" in n_sentiment or "Negative" in n_sentiment else "#888"
+                                    
+                                    st.markdown(f"""
+                                        <div style="border-left: 3px solid {sent_color}; padding-left: 10px; margin-bottom: 12px; background:rgba(255,255,255,0.03); padding: 8px;">
+                                            <div style="font-size:0.9em; font-weight:700;">{n_title}</div>
+                                            <div style="font-size:0.7em; color:{sent_color}; font-family:'Outfit'; text-transform:uppercase; margin-top:4px;">Sentiment: {n_sentiment} | <a href="{n_url}" style="color:#555;">LINK</a></div>
+                                        </div>
+                                    """, unsafe_allow_html=True)
         else:
-            st.write("No hay noticias recientes para los activos seleccionados.")
+            st.write("No hay señales de inteligencia disponibles.")
+
+    with tab_backtest:
+        st.markdown("""
+            <div style="background:var(--glass-bg); padding:30px; border-radius:24px; border:1px solid var(--glass-border); margin-bottom:30px;">
+                <h2 style="margin-top:0; font-family:'Outfit'; color:var(--neon-green);">🧪 Simulador Táctico</h2>
+                <p style="color:#888;">Simula el rendimiento de la IA en condiciones históricas de mercado.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        col_b1, col_b2, col_b3 = st.columns(3)
+        with col_b1:
+            bt_symbol = st.selectbox("Activo para Backtest", available_options, index=0)
+        with col_b2:
+            bt_days = st.slider("Días atrás", 1, 30, 7)
+        with col_b3:
+            bt_step = st.selectbox("Paso de Análisis (Velas)", [1, 2, 4, 8], index=2, help="Pasos más altos ahorran tokens.")
+
+        if st.button("🚀 Iniciar Simulación"):
+            with st.spinner(f"Simulando {bt_symbol} por {bt_days} días..."):
+                results = logic.run_backtest(bt_symbol, source=market_source, days=bt_days, interval="1h")
+                
+                if "error" in results:
+                    st.error(results["error"])
+                else:
+                    st.success("✅ Simulación Completada")
+                    
+                    # Metrics
+                    m1, m2, m3, m4 = st.columns(4)
+                    m1.metric("Win Rate", f"{results['win_rate']:.1f}%")
+                    m2.metric("Profit Final", f"{results['profit_pct']:.2f}%")
+                    m3.metric("Capital Final", f"${results['final_capital']:,.2f}")
+                    m4.metric("Total Trades", results['total_trades'])
+                    
+                    # Equity Curve Chart
+                    equity_df = pd.DataFrame(results['equity_curve'])
+                    fig_equity = go.Figure()
+                    fig_equity.add_trace(go.Scatter(x=equity_df['time'], y=equity_df['equity'], mode='lines', name='Equity Line', line=dict(color='#00ff7f', width=3)))
+                    fig_equity.update_layout(title="📈 Curva de Equidad", template="plotly_dark", height=400)
+                    st.plotly_chart(fig_equity, use_container_width=True)
+                    
+                    # Trade Log
+                    with st.expander("📜 Registro de Operaciones"):
+                        for t in results['trades']:
+                            color = "#00ff7f" if "BUY" in t['type'] else "#ff4444"
+                            st.markdown(f"""
+                            <div style="border-left: 5px solid {color}; padding: 10px; margin-bottom: 5px; background: rgba(255,255,255,0.05);">
+                                <b>{t['time']} - {t['type']}</b> | Precio: ${t['price']:,.2f} <br>
+                                <span style="font-size:0.8em; color:#888;">{t['reason']}</span>
+                            </div>
+                            """, unsafe_allow_html=True)
     
     # Footer
     st.markdown("---")
