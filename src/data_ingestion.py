@@ -7,8 +7,54 @@ import pandas as pd
 
 load_dotenv()
 
+class YFinanceDataIngestor:
+    """Fallback ingestor for crypto prices using yfinance (Bypass 451 Restricted)."""
+    def __init__(self):
+        try:
+            import yfinance as yf
+            self.yf = yf
+        except: self.yf = None
+
+    def get_historical_data(self, symbol, interval="1h", limit=200):
+        if not self.yf: return pd.DataFrame()
+        # Map symbol: BTCUSDT -> BTC-USD
+        yf_symbol = symbol.replace("USDT", "-USD")
+        
+        # Map intervals
+        yf_interval = "1h"
+        if interval == "15m": yf_interval = "15m"
+        elif interval == "4h": yf_interval = "1h"
+        
+        period = "5d" if limit <= 120 else "1mo"
+        
+        try:
+            ticker = self.yf.Ticker(yf_symbol)
+            df = ticker.history(period=period, interval=yf_interval)
+            if df.empty: return pd.DataFrame()
+            
+            df = df.reset_index()
+            df = df.rename(columns={df.columns[0]: 'timestamp', 'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'})
+            df['timestamp'] = pd.to_datetime(df['timestamp']).dt.tz_localize(None)
+            return df[['timestamp', 'open', 'high', 'low', 'close', 'volume']].tail(limit)
+        except: return pd.DataFrame()
+
+    def get_ticker_info(self, symbol):
+        if not self.yf: return None
+        yf_symbol = symbol.replace("USDT", "-USD")
+        try:
+            ticker = self.yf.Ticker(yf_symbol)
+            curr = ticker.fast_info['lastPrice']
+            prev = ticker.fast_info['previousClose']
+            return {
+                "symbol": symbol,
+                "price": curr,
+                "change": ((curr - prev) / prev) * 100
+            }
+        except: return None
+
 class BinanceDataIngestor:
     def __init__(self):
+        self.fallback = YFinanceDataIngestor()
         # Prefer st.secrets in Streamlit Cloud
         try:
             api_key = st.secrets.get("BINANCE_API_KEY", os.getenv("BINANCE_API_KEY"))
@@ -78,7 +124,21 @@ class BinanceDataIngestor:
         if not data:
             data = self._fetch_rest("/api/v3/ticker/24hr")
             
-        if not data: return pd.DataFrame()
+        if not data:
+            # Plan B: Try yfinance for top assets
+            top_assets = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"]
+            fallback_data = []
+            for s in top_assets:
+                info = self.fallback.get_ticker_info(s)
+                if info:
+                    fallback_data.append({
+                        "symbol": info['symbol'],
+                        "priceChangePercent": info['change'],
+                        "lastPrice": info['price'],
+                        "quoteVolume": 0
+                    })
+            if fallback_data: return pd.DataFrame(fallback_data)
+            return pd.DataFrame()
         
         try:
             df = pd.DataFrame(data)
@@ -103,7 +163,9 @@ class BinanceDataIngestor:
             params = {"symbol": symbol, "interval": interval, "limit": limit}
             data = self._fetch_rest("/api/v3/klines", params=params)
 
-        if not data: return pd.DataFrame()
+        if not data:
+            # Plan B Fallback
+            return self.fallback.get_historical_data(symbol, interval, limit)
         
         try:
             df = pd.DataFrame(data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'number_of_trades', 'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'])

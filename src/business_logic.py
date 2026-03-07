@@ -29,8 +29,10 @@ class BusinessLogic:
         return self.backtester.run_simulation(symbol, interval=interval, days=days)
         
     def is_healthy(self):
-        """Checks if the data connection is alive."""
-        return self.ingestor and self.ingestor.client is not None
+        """Checks if any data connection (Binance or Fallback) is alive."""
+        binance_ok = self.ingestor and self.ingestor.sdk_ready
+        fallback_ok = self.ingestor and self.ingestor.fallback and self.ingestor.fallback.yf is not None
+        return binance_ok or fallback_ok
 
     def get_market_overview(self, specific_symbols=None, image_bytes=None):
         """
