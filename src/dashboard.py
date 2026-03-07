@@ -226,6 +226,37 @@ def run_dashboard():
         st.sidebar.warning("Bot en modo PASIVO 💤")
 
     st.sidebar.markdown("---")
+    st.sidebar.subheader("⚡ Ejecución de Élite")
+    
+    trailing_dist = st.sidebar.slider(
+        "Trailing Stop (%)",
+        0.5, 5.0, 2.0, 0.5,
+        help="Distancia que el Stop seguirá al precio. Recomendado: 2%."
+    )
+    
+    partial_exit_enabled = st.sidebar.toggle(
+        "Cierre Parcial (50% al 1%)",
+        value=True,
+        help="Vende la mitad de la posición automáticamente al alcanzar 1% de profit."
+    )
+    
+    # Update active trades with these settings (simplified)
+    # This keeps settings in sync with the UI
+    for symbol in logic.execution.active_trades:
+        logic.execution.active_trades[symbol]["trailing_dist_pct"] = trailing_dist / 100
+    
+    # Show Active Monitoring
+    if logic.execution.active_trades:
+        with st.sidebar.expander("👁️ Monitoreo Activo", expanded=True):
+            for s, t in logic.execution.active_trades.items():
+                st.markdown(f"**{s}** ({t['side']})")
+                st.caption(f"Entrada: ${t['entry_price']:.2f}")
+                if t.get('partial_exited'):
+                    st.success("✅ Mitad Vendida (+1%)")
+                else:
+                    st.info("⏳ Esperando +1% Pnl")
+
+    st.sidebar.markdown("---")
 
     # Stats Sections
     st.sidebar.subheader("📊 Marcador Histórico")
