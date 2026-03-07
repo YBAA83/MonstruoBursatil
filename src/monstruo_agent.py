@@ -56,7 +56,7 @@ def run_agent():
             logger.info(f"--- Starting Analysis Cycle at {current_time} ---")
             
             # get_market_overview internally handles technical analysis, AI generation, and Telegram notification
-            assets = logic.get_market_overview(specific_symbols=symbols, source="Binance")
+            assets = logic.get_market_overview(specific_symbols=symbols)
             
             summary = []
             for asset in assets:

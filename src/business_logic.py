@@ -1,4 +1,4 @@
-from src.data_ingestion import BinanceDataIngestor, StocksDataIngestor
+from src.data_ingestion import BinanceDataIngestor
 from src.ai_analyst import AIAnalyst
 from src.news_scraper import NewsScraper
 from src.notifier import TelegramNotifier
@@ -11,7 +11,6 @@ import io
 class BusinessLogic:
     def __init__(self):
         self.ingestor = BinanceDataIngestor()
-        self.stocks_ingestor = StocksDataIngestor()
         self.ai = AIAnalyst()
         self.news = NewsScraper()
         self.notifier = TelegramNotifier()
@@ -24,38 +23,24 @@ class BusinessLogic:
         self.journal = TradingJournal() # Phase 13: 1% Goal & Journal
         self.debug_v = "13.1"
 
-    def run_backtest(self, symbol, source="Binance", interval="1h", days=7):
+    def run_backtest(self, symbol, interval="1h", days=7):
         """Bridge to run backtest simulation."""
-        current_ingestor = self.ingestor if source == "Binance" else self.stocks_ingestor
-        self.backtester.ingestor = current_ingestor
+        self.backtester.ingestor = self.ingestor
         return self.backtester.run_simulation(symbol, interval=interval, days=days)
         
     def is_healthy(self):
         """Checks if the data connection is alive."""
         return self.ingestor and self.ingestor.client is not None
 
-    def get_market_overview(self, specific_symbols=None, source="Binance", image_bytes=None):
+    def get_market_overview(self, specific_symbols=None, image_bytes=None):
         """
         Orchestrates the data flow:
-        1. Fetch top movers OR specific symbols (Binance, Stocks, Nasdaq, Forex).
+        1. Fetch top movers OR specific symbols (Binance only).
         2. For selected assets, fetch news and historical data.
         3. Run AI analysis.
         4. Return structured data for Dashboard.
         """
-        print(f"DEBUG: Executing get_market_overview for {source}...")
-        
-        # General handle for Yfinance-based sources
-        if source in ["SP500", "Nasdaq", "Forex"]:
-            if not specific_symbols:
-                if source == "SP500":
-                    symbols = ["SPY", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL"]
-                elif source == "Nasdaq":
-                    symbols = ["QQQ", "NVDA", "TSLA", "META", "AMD", "NFLX"]
-                else: # Forex
-                    symbols = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "BTCUSD=X"]
-            else:
-                symbols = specific_symbols
-            return self._get_stocks_overview(symbols, image_bytes=image_bytes)
+        print(f"DEBUG: Executing get_market_overview...")
 
         # Original Binance Logic
         if specific_symbols:
@@ -246,51 +231,35 @@ class BusinessLogic:
         """Bridge to log a trade into the persistent journal."""
         return self.journal.add_trade(symbol, entry_price, exit_price, side, quantity, reason)
 
-    def get_ticker_data(self, source="Binance", limit=20):
-        """Lightweight fetch for ticker prices across all sources."""
+    def get_ticker_data(self, limit=20):
+        """Lightweight fetch for ticker prices (Binance only)."""
         try:
-            if source == "Binance":
-                df = self.ingestor.get_all_tickers()
-                if df.empty:
-                    tickers = self.ingestor._fetch_rest("/api/v3/ticker/24hr")
-                    if not tickers: return []
-                    df = pd.DataFrame(tickers)
-                
-                df = df[df['symbol'].str.endswith('USDT')]
-                price_col = 'price' if 'price' in df.columns else 'lastPrice'
-                change_col = 'priceChangePercent' if 'priceChangePercent' in df.columns else None
-                
-                if 'quoteVolume' in df.columns:
-                    df['quoteVolume'] = pd.to_numeric(df['quoteVolume'], errors='coerce')
-                    top_df = df.sort_values(by='quoteVolume', ascending=False).head(limit)
-                else:
-                    top_df = df.head(limit)
-                    
-                ticker_list = []
-                for _, row in top_df.iterrows():
-                    ticker_list.append({
-                        "symbol": row['symbol'],
-                        "price": float(row[price_col]),
-                        "change": float(row[change_col]) if change_col else 0.0
-                    })
-                return ticker_list
+            df = self.ingestor.get_all_tickers()
+            if df.empty:
+                tickers = self.ingestor._fetch_rest("/api/v3/ticker/24hr")
+                if not tickers: return []
+                df = pd.DataFrame(tickers)
+            
+            df = df[df['symbol'].str.endswith('USDT')]
+            price_col = 'price' if 'price' in df.columns else 'lastPrice'
+            change_col = 'priceChangePercent' if 'priceChangePercent' in df.columns else None
+            
+            if 'quoteVolume' in df.columns:
+                df['quoteVolume'] = pd.to_numeric(df['quoteVolume'], errors='coerce')
+                top_df = df.sort_values(by='quoteVolume', ascending=False).head(limit)
             else:
-                # Traditional Markets (Nasdaq, Forex, SP500)
-                if source == "Nasdaq":
-                    symbols = ["QQQ", "AAPL", "MSFT", "NVDA", "TSLA", "META", "AMZN", "GOOGL", "AMD", "NFLX"]
-                elif source == "Forex":
-                    symbols = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "USDCAD=X", "USDCHF=X", "NZDUSD=X"]
-                else: # SP500
-                    symbols = ["SPY", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "BRK-B", "UNH"]
+                top_df = df.head(limit)
                 
-                ticker_list = []
-                for s in symbols[:limit]:
-                    info = self.stocks_ingestor.get_ticker_info(s)
-                    if info:
-                        ticker_list.append(info)
-                return ticker_list
+            ticker_list = []
+            for _, row in top_df.iterrows():
+                ticker_list.append({
+                    "symbol": row['symbol'],
+                    "price": float(row[price_col]),
+                    "change": float(row[change_col]) if change_col else 0.0
+                })
+            return ticker_list
         except Exception as e:
-            print(f"DEBUG: Ticker fetch failed for {source}: {e}")
+            print(f"DEBUG: Ticker fetch failed: {e}")
             return []
 
     def generate_excel_report(self, analyzed_assets):
@@ -327,50 +296,7 @@ class BusinessLogic:
 
         return output.getvalue()
 
-    def _get_stocks_overview(self, symbols, image_bytes=None):
-        """Logic for stock market overview."""
-        analyzed_assets = []
-        for symbol in symbols:
-            try:
-                info = self.stocks_ingestor.get_ticker_info(symbol)
-                history = self.stocks_ingestor.get_historical_data(symbol)
-                
-                if info and not history.empty:
-                    # AI prompt for stocks
-                    context = f"Tradicional Market Analysis | Symbol: {symbol}"
-                    ai_result = self.ai.analyze_asset(symbol, history, context, image_bytes=image_bytes)
-                    
-                    asset_obj = {
-                        "symbol": symbol,
-                        "price": info['price'],
-                        "change_24h": info['change'],
-                        "volume": info['volume'],
-                        "whale_alert": False,
-                        "signal": ai_result["signal"],
-                        "reasoning": ai_result["reasoning"],
-                        "levels": ai_result["levels"],
-                        "history": history,
-                        "mtf_summary": ["1h: Trad."],
-                        "kpis": {}
-                    }
-                    analyzed_assets.append(asset_obj)
-                    
-                    # Alerting logic for stocks
-                    if asset_obj['signal'] in ["Green", "Red"]:
-                        last_sig = self.notified_signals.get(symbol)
-                        if last_sig != asset_obj['signal']:
-                            self.notifier.send_signal(
-                                symbol=symbol,
-                                signal=asset_obj['signal'],
-                                price=asset_obj['price'],
-                                reasoning=asset_obj['reasoning']
-                            )
-                            self.notified_signals[symbol] = asset_obj['signal']
-                    elif asset_obj['signal'] == "Yellow":
-                        self.notified_signals[symbol] = "Yellow"
-            except Exception as e:
-                print(f"DEBUG: Stock process failed for {symbol}: {e}")
-        return analyzed_assets
+
 
     def get_market_correlation(self, analyzed_assets):
         """Calculates correlation of assets vs prime asset (BTC or SPY)."""

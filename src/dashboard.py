@@ -167,9 +167,9 @@ def run_dashboard():
     st.sidebar.title("🚀 Monstruo Bursátil")
     st.sidebar.markdown("---")
     
-    # --- MARKET SELECTOR ---
-    market_source = st.sidebar.radio("📚 Seleccionar Mercado", ["Binance", "Nasdaq", "Forex", "SP500"], horizontal=True)
-    st.sidebar.markdown("---")
+    # --- MARKET SELECTOR (Hardcoded to Binance) ---
+    market_source = "Binance"
+    # market_source = st.sidebar.radio("📚 Seleccionar Mercado", ["Binance", "Nasdaq", "Forex", "SP500"], horizontal=True)
 
     # --- VISION UPLOAD ---
     with st.sidebar.expander("ANALISTA VISUAL", expanded=False):
@@ -492,14 +492,14 @@ def run_dashboard():
     # Asset Selection Constants
     default_assets = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]
 
-    def load_data(symbols=None, source="Binance", chart_image=None):
+    # Load Data Wrapper
+    def load_data(symbols, chart_image=None):
         if not symbols: return []
         symbols = list(set(symbols))
         
-        # Fetch Expanded Ticker Data (Fast, no AI)
-        st.session_state.ticker_data = logic.get_ticker_data(source=source, limit=15)
+        st.session_state.ticker_data = logic.get_ticker_data(limit=15)
         
-        if st.session_state.market_overview and source == "Binance":
+        if st.session_state.market_overview:
             for asset in st.session_state.market_overview:
                 symbol = asset.get('symbol')
                 if not symbol: continue
@@ -515,8 +515,8 @@ def run_dashboard():
                 except: pass
 
         try:
-            with st.spinner(f"Analizando {len(symbols)} activos en {source}..."):
-                new_data = logic.get_market_overview(specific_symbols=symbols, source=source, image_bytes=chart_image)
+            with st.spinner(f"Analizando {len(symbols)} activos..."):
+                new_data = logic.get_market_overview(specific_symbols=symbols, image_bytes=chart_image)
                 for asset in new_data:
                     usage = asset.get('usage', {})
                     if usage:
@@ -533,19 +533,9 @@ def run_dashboard():
             st.error(f"Error: {e}")
             return []
 
-    # Initialize assets and selection based on market
-    if market_source == "Binance":
-        available_options = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT", "LINKUSDT", "DOTUSDT", "MATICUSDT", "SHIBUSDT", "LTCUSDT", "NEARUSDT"]
-        default_assets = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT"]
-    elif market_source == "Nasdaq":
-        available_options = ["QQQ", "AAPL", "MSFT", "NVDA", "TSLA", "META", "AMZN", "GOOGL", "AMD", "NFLX", "GOOG", "INTC", "PYPL", "CSCO"]
-        default_assets = ["QQQ", "AAPL", "MSFT", "NVDA", "TSLA", "META"]
-    elif market_source == "Forex":
-        available_options = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "USDCAD=X", "USDCHF=X", "NZDUSD=X", "EURGBP=X", "EURJPY=X", "BTCUSD=X"]
-        default_assets = ["EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "USDCAD=X"]
-    else: # SP500
-        available_options = ["SPY", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "BRK-B", "UNH", "JNJ", "V", "XOM", "TSM"]
-        default_assets = ["SPY", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL"]
+    # Initialize assets (Binance Only)
+    available_options = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT", "LINKUSDT", "DOTUSDT", "MATICUSDT", "SHIBUSDT", "LTCUSDT", "NEARUSDT"]
+    default_assets = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "TRXUSDT"]
 
     selected_assets = st.sidebar.multiselect("Activos (Max 12)", available_options, default=default_assets[:8])
     if len(selected_assets) > 12: selected_assets = selected_assets[:12]
@@ -564,11 +554,11 @@ def run_dashboard():
         should_reload = True
 
     if st.session_state.market_overview is None or should_reload:
-        st.session_state.market_overview = load_data(selected_assets, source=market_source, chart_image=image_bytes)
+        st.session_state.market_overview = load_data(selected_assets, chart_image=image_bytes)
         st.rerun()
 
     if st.button("Actualizar Análisis"):
-        st.session_state.market_overview = load_data(selected_assets, source=market_source)
+        st.session_state.market_overview = load_data(selected_assets)
         st.rerun()
 
     # Render Cards in Dynamic Grid (3 columns per row)
