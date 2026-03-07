@@ -22,9 +22,10 @@ class BusinessLogic:
         self.last_update = 0
         self.update_interval = 60
         self.timeframes = ["15m", "1h", "4h"]
+        self.notified_signals = {} # Track last notified signal per symbol
         self.journal = TradingJournal() 
         self.strategy = StrategyManager() # Phase 17: Snowball
-        self.debug_v = "15.0" # Snowball Ready
+        self.debug_v = "16.0" # Advanced Ops Ready
 
     def run_backtest(self, symbol, interval="1h", days=7):
         """Bridge to run backtest simulation."""
@@ -228,7 +229,15 @@ class BusinessLogic:
             
         # Sort by volume descending
         analyzed_assets.sort(key=lambda x: x.get('volume', 0), reverse=True)
-            
+
+        # --- Phase 18: Integrated Execution Management ---
+        # Collect current prices for active trade management
+        current_prices = {a['symbol']: a['price'] for a in analyzed_assets}
+        closed = self.execution.manage_active_trades(current_prices)
+        if closed:
+            for s, reason in closed:
+                self.notifier.send_text(f"🛑 Trade Cerrado ({reason}): {s}")
+
         print(f"DEBUG: Returning {len(analyzed_assets)} analyzed assets.")
         return analyzed_assets
 

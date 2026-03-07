@@ -12,6 +12,7 @@ class ExecutionEngine:
         self.api_key = os.getenv("BINANCE_API_KEY")
         self.api_secret = os.getenv("BINANCE_SECRET_KEY")
         self.logger = logging.getLogger("ExecutionEngine")
+        self.active_trades = {} # Track open positions for trailing stops/partials
         
         try:
             if self.api_key and self.api_secret:
@@ -42,31 +43,66 @@ class ExecutionEngine:
             "mode": self.mode
         }
 
-        if self.mode == "simulation":
-            self.logger.info(f"[SIMULATION] Order Placed: {side} {quantity} {symbol} @ {price}")
-            order_info["status"] = "FILLED"
-            order_info["order_id"] = "SIM_12345"
-            return order_info
+        if "order_id" in order_info or order_info.get("status") == "SUCCESS":
+            # Track for trailing stops and partials
+            self.active_trades[symbol] = {
+                "side": side,
+                "entry_price": price,
+                "quantity": quantity,
+                "highest_price": price if side == "BUY" else price,
+                "lowest_price": price if side == "SELL" else price,
+                "partial_exited": False,
+                "trailing_stop_active": True,
+                "trailing_dist_pct": 0.02 # Default 2%
+            }
+        
+        return order_info
 
-        if not self.ready:
-            return {"error": "Execution Engine not ready (No API Keys)"}
+    def manage_active_trades(self, current_prices):
+        """
+        Updates trailing stops and handles partial exits for active trades.
+        current_prices: dict {symbol: price}
+        """
+        closed_trades = []
+        for symbol, trade in self.active_trades.items():
+            if symbol not in current_prices: continue
+            
+            price = current_prices[symbol]
+            side = trade["side"]
+            
+            # --- 1. PARTIAL EXIT (at 1% profit) ---
+            if not trade["partial_exited"]:
+                entry = float(trade["entry_price"])
+                profit_pct = ((price - entry) / entry) * 100 if side == "BUY" else ((entry - price) / entry) * 100
+                if profit_pct >= 1.0:
+                    self.logger.info(f"🚀 PARTIAL EXIT: {symbol} at {price} (1% profit reached)")
+                    trade["partial_exited"] = True
+                    trade["quantity"] = float(trade["quantity"]) / 2
+            
+            # --- 2. TRAILING STOP ---
+            dist = float(trade["trailing_dist_pct"])
+            if side == "BUY":
+                if price > float(trade["highest_price"]):
+                    trade["highest_price"] = price
+                
+                stop_level = float(trade["highest_price"]) * (1 - dist)
+                if price <= stop_level:
+                    self.logger.info(f"🛑 TRAILING STOP HIT (BUY): {symbol} at {price}")
+                    closed_trades.append((symbol, "TRAILING_STOP_HIT"))
+            else: # SELL/SHORT
+                if price < float(trade["lowest_price"]):
+                    trade["lowest_price"] = price
+                
+                stop_level = float(trade["lowest_price"]) * (1 + dist)
+                if price >= stop_level:
+                    self.logger.info(f"🛑 TRAILING STOP HIT (SELL): {symbol} at {price}")
+                    closed_trades.append((symbol, "TRAILING_STOP_HIT"))
 
-        try:
-            # Placeholder for actual Binance API call
-            # order = self.client.create_order(
-            #     symbol=symbol,
-            #     side=side,
-            #     type='LIMIT',
-            #     timeInForce='GTC',
-            #     quantity=quantity,
-            #     price=str(price)
-            # )
-            # return order
-            self.logger.info(f"[REAL] Placing Order: {side} {quantity} {symbol} @ {price}")
-            return {"status": "SUCCESS", "msg": "Real execution currently in sandbox mode"}
-        except Exception as e:
-            self.logger.error(f"Order placement failed: {e}")
-            return {"error": str(e)}
+        # Cleanup closed trades
+        for symbol, reason in closed_trades:
+            del self.active_trades[symbol]
+            
+        return closed_trades
 
     def set_mode(self, mode):
         if mode in ["simulation", "real"]:
