@@ -22,6 +22,7 @@ class BusinessLogic:
         self.timeframes = ["15m", "1h", "4h"]
         self.notified_signals = {} # Track last notified signal per symbol
         self.journal = TradingJournal() # Phase 13: 1% Goal & Journal
+        self.debug_v = "13.1"
 
     def run_backtest(self, symbol, source="Binance", interval="1h", days=7):
         """Bridge to run backtest simulation."""

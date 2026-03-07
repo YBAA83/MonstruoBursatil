@@ -143,7 +143,7 @@ def run_dashboard():
     """, unsafe_allow_html=True)
 
     # Initialize Logic
-    @st.cache_resource
+    # @st.cache_resource
     def get_logic(): return BusinessLogic()
     logic = get_logic()
 
