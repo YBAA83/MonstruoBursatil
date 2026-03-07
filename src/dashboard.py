@@ -281,10 +281,6 @@ def run_dashboard():
                 logic.log_manual_trade(t_symbol, t_entry, t_exit, t_side, t_qty, t_reason)
                 st.success("Trade guardado!")
                 st.rerun()
-        st.session_state.total_input = 0
-        st.session_state.total_output = 0
-        save_stats(0, 0, 0, 0)
-        st.rerun()
 
     # --- CORRELATION RADAR ---
     if st.session_state.market_overview:
