@@ -21,27 +21,29 @@ class TelegramNotifier:
 
         icon = "🟢" if signal == "Green" else "🔴" if signal == "Red" else "🟡"
         message = f"""
-{icon} *MONSTRUO BURSÁTIL ALERT* {icon}
+{icon} <b>MONSTRUO BURSÁTIL ALERT</b> {icon}
         
-*Activo:* {symbol}
-*Precio:* ${price:,.2f}
-*Señal:* {signal.upper()}
+<b>Activo:</b> {symbol}
+<b>Precio:</b> ${price:,.2f}
+<b>Señal:</b> {signal.upper()}
         
-*Análisis:*
+<b>Análisis:</b>
 {reasoning}
         
-🚀 _Monstruo Bursátil AI_
+🚀 <i>Monstruo Bursátil AI</i>
         """.strip()
 
         url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
         payload = {
             "chat_id": self.chat_id,
             "text": message,
-            "parse_mode": "Markdown"
+            "parse_mode": "HTML"
         }
 
         try:
             response = requests.post(url, json=payload, timeout=10)
+            if response.status_code != 200:
+                print(f"DEBUG: Telegram API Error: {response.status_code} - {response.text}")
             return response.status_code == 200
         except Exception as e:
             print(f"DEBUG: Telegram notify failed: {e}")

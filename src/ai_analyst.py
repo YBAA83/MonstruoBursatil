@@ -45,13 +45,15 @@ class AIAnalyst:
         1. Evaluate Multi-Temporal Trends (MTF) and Technical Indicators (RSI, MACD, BB).
         2. Whale Activity & Order Book: Incorporate volume spikes and walls.
         3. Visual Patterns: If an image is provided, describe the structure you see.
-        4. Final Judgment: Combine visual and technical data for the signal.
+        4. Final Judgment: The user's goal is a **1% daily profit**. Be extremely conservative. 
+           Only give a GREEN/RED signal if there is high convergence of at least 3 indicators. Otherwise, stay YELLOW.
 
         Output Style:
         Signal: [GREEN/YELLOW/RED]
+        Confidence: [0-10] (How certain are you? 10 is absolute certainty)
         Reasoning: [TEXT - Concise max 3 sentences. Mention specific patterns or data points used.]
         Levels: [TEXT - Define support and resistance]
-        """
+        """.strip()
         
         try:
             contents = [prompt]
@@ -91,18 +93,23 @@ class AIAnalyst:
             }
 
     def _parse_response(self, text):
-        """Simple parser to extract signal and reasoning/levels from AI response."""
+        """Simple parser to extract signal, confidence and reasoning/levels from AI response."""
         lines = text.strip().split('\n')
-        result = {"signal": "Yellow", "reasoning": "Análisis pendiente", "levels": "N/A"}
+        result = {"signal": "Yellow", "confidence": 5, "reasoning": "Análisis pendiente", "levels": "N/A"}
         
         for line in lines:
             if "Signal:" in line:
-                if "GREEN" in line.upper():
-                    result["signal"] = "Green"
-                elif "RED" in line.upper():
-                    result["signal"] = "Red"
-                else:
-                    result["signal"] = "Yellow"
+                if "GREEN" in line.upper(): result["signal"] = "Green"
+                elif "RED" in line.upper(): result["signal"] = "Red"
+                else: result["signal"] = "Yellow"
+            elif "Confidence:" in line:
+                try:
+                    import re
+                    match = re.search(r'\d+', line)
+                    if match:
+                        result["confidence"] = int(match.group())
+                except:
+                    pass
             elif "Reasoning:" in line:
                 result["reasoning"] = line.replace("Reasoning:", "").strip()
             elif "Levels:" in line:

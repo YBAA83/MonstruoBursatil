@@ -180,6 +180,24 @@ def run_dashboard():
             image_bytes = uploaded_chart.getvalue()
         else:
             image_bytes = None
+    # --- 1% DAILY GOAL (Phase 13) ---
+    st.sidebar.subheader("🎯 Meta Diaria (1%)")
+    progress_val, current_pnl = logic.journal.get_progress_to_target()
+    
+    # Progress Bar with Neon Styling
+    st.sidebar.markdown(f"""
+        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+            <span style="font-size:0.8em; color:#888;">Progreso</span>
+            <span style="font-weight:700; color:{'var(--neon-green)' if current_pnl >= 0 else 'var(--neon-red)'};">
+                {current_pnl:+.2f}%
+            </span>
+        </div>
+    """, unsafe_allow_html=True)
+    st.sidebar.progress(progress_val / 100)
+    
+    if current_pnl >= 1.0:
+        st.sidebar.success("🔥 ¡META CUMPLIDA!")
+
     st.sidebar.markdown("---")
 
     # Stats Sections
@@ -248,6 +266,21 @@ def run_dashboard():
     if st.sidebar.button("🗑️ Reset Stats"):
         st.session_state.hits = 0
         st.session_state.misses = 0
+
+    st.sidebar.markdown("---")
+    # --- LOG TRADE FORM ---
+    with st.sidebar.expander("📝 REGISTRAR OPERACIÓN", expanded=False):
+        with st.form("trade_form"):
+            t_symbol = st.text_input("Símbolo", value="BTCUSDT")
+            t_side = st.selectbox("Operación", ["BUY", "SELL"])
+            t_entry = st.number_input("Precio Entrada", format="%.4f")
+            t_exit = st.number_input("Precio Salida", format="%.4f")
+            t_qty = st.number_input("Cantidad", format="%.4f")
+            t_reason = st.text_area("Nota/Razón")
+            if st.form_submit_button("Guardar en Bitácora"):
+                logic.log_manual_trade(t_symbol, t_entry, t_exit, t_side, t_qty, t_reason)
+                st.success("Trade guardado!")
+                st.rerun()
         st.session_state.total_input = 0
         st.session_state.total_output = 0
         save_stats(0, 0, 0, 0)
@@ -321,7 +354,7 @@ def run_dashboard():
         </div>
     """, unsafe_allow_html=True)
 
-    tab_radar, tab_backtest = st.tabs(["📡 Radar en Vivo", "🧪 Simulador (Backtest)"])
+    tab_radar, tab_backtest, tab_journal = st.tabs(["📡 Radar en Vivo", "🧪 Simulador (Backtest)", "📓 Diario de Trading"])
 
     with tab_radar:
         # Connection Health Check
@@ -629,6 +662,43 @@ def run_dashboard():
                             </div>
                             """, unsafe_allow_html=True)
     
+    with tab_journal:
+        st.markdown("""
+            <div style="background:var(--glass-bg); padding:30px; border-radius:24px; border:1px solid var(--glass-border); margin-bottom:30px;">
+                <h2 style="margin-top:0; font-family:'Outfit'; color:var(--neon-green);">📓 Diario de Trading</h2>
+                <p style="color:#888;">Registro persistente de operaciones y rendimiento diario.</p>
+            </div>
+        """, unsafe_allow_html=True)
+
+        recent_trades = logic.journal.get_recent_trades(20)
+        if not recent_trades:
+            st.info("Aún no hay trades registrados en la bitácora.")
+        else:
+            # Table Header
+            st.markdown("""
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr; background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; font-weight:bold; font-size:0.9em; margin-bottom:10px;">
+                    <div>Fecha</div>
+                    <div>Símbolo</div>
+                    <div>Lado</div>
+                    <div>Entrada</div>
+                    <div>Salida</div>
+                    <div>P/L %</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            for t in recent_trades:
+                color = "var(--neon-green)" if t['pnl_pct'] > 0 else "var(--neon-red)"
+                st.markdown(f"""
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr; padding:10px; border-bottom:1px solid rgba(255,255,255,0.03); font-size:0.85em;">
+                        <div style="color:#888;">{t['timestamp']}</div>
+                        <div style="font-weight:bold;">{t['symbol']}</div>
+                        <div style="color:{'var(--neon-green)' if t['side']=='BUY' else 'var(--neon-red)'}; font-weight:700;">{t['side']}</div>
+                        <div>${t['entry']:,.2f}</div>
+                        <div>${t['exit']:,.2f}</div>
+                        <div style="color:{color}; font-weight:bold;">{t['pnl_pct']:+.2f}%</div>
+                    </div>
+                """, unsafe_allow_html=True)
+
     # Footer
     st.markdown("---")
     st.markdown("Developed with ❤️ by Monstruo Bursátil Team using Google Gemini AI")

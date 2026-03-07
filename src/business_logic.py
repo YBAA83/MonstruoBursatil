@@ -3,6 +3,7 @@ from src.ai_analyst import AIAnalyst
 from src.news_scraper import NewsScraper
 from src.notifier import TelegramNotifier
 from src.backtester import Backtester
+from src.trading_journal import TradingJournal
 import pandas as pd
 import time
 import io
@@ -20,6 +21,7 @@ class BusinessLogic:
         self.update_interval = 60
         self.timeframes = ["15m", "1h", "4h"]
         self.notified_signals = {} # Track last notified signal per symbol
+        self.journal = TradingJournal() # Phase 13: 1% Goal & Journal
 
     def run_backtest(self, symbol, source="Binance", interval="1h", days=7):
         """Bridge to run backtest simulation."""
@@ -203,6 +205,7 @@ class BusinessLogic:
                 "vol_anomaly": vol_anomaly_score,
                 "mtf_summary": mtf_summary,
                 "signal": ai_result["signal"],
+                "confidence": ai_result.get("confidence", 5),
                 "reasoning": ai_result["reasoning"],
                 "levels": ai_result["levels"],
                 "usage": ai_result.get("usage", {}),
@@ -217,7 +220,10 @@ class BusinessLogic:
             # Send Notification if Signal is High Conviction and changed
             if asset_obj['signal'] in ["Green", "Red"]:
                 last_sig = self.notified_signals.get(symbol)
-                if last_sig != asset_obj['signal']:
+                confidence = asset_obj.get('confidence', 5)
+                
+                if last_sig != asset_obj['signal'] and confidence >= 8:
+                    print(f"DEBUG: High Confidence Signal ({confidence}/10) for {symbol}. Notifying...")
                     self.notifier.send_signal(
                         symbol=symbol,
                         signal=asset_obj['signal'],
@@ -234,6 +240,10 @@ class BusinessLogic:
             
         print(f"DEBUG: Returning {len(analyzed_assets)} analyzed assets.")
         return analyzed_assets
+
+    def log_manual_trade(self, symbol, entry_price, exit_price, side, quantity, reason=""):
+        """Bridge to log a trade into the persistent journal."""
+        return self.journal.add_trade(symbol, entry_price, exit_price, side, quantity, reason)
 
     def get_ticker_data(self, source="Binance", limit=20):
         """Lightweight fetch for ticker prices across all sources."""
