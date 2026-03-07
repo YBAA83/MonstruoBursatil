@@ -4,6 +4,7 @@ from src.news_scraper import NewsScraper
 from src.notifier import TelegramNotifier
 from src.backtester import Backtester
 from src.trading_journal import TradingJournal
+from src.execution_engine import ExecutionEngine
 import pandas as pd
 import time
 import io
@@ -15,13 +16,14 @@ class BusinessLogic:
         self.news = NewsScraper()
         self.notifier = TelegramNotifier()
         self.backtester = Backtester(self.ai, self.ingestor)
+        self.execution = ExecutionEngine(mode="simulation") # Default to simulation
         self.cache = {}
         self.last_update = 0
         self.update_interval = 60
         self.timeframes = ["15m", "1h", "4h"]
         self.notified_signals = {} # Track last notified signal per symbol
         self.journal = TradingJournal() # Phase 13: 1% Goal & Journal
-        self.debug_v = "13.1"
+        self.debug_v = "14.0" # Updated version
 
     def run_backtest(self, symbol, interval="1h", days=7):
         """Bridge to run backtest simulation."""
@@ -232,6 +234,45 @@ class BusinessLogic:
     def log_manual_trade(self, symbol, entry_price, exit_price, side, quantity, reason=""):
         """Bridge to log a trade into the persistent journal."""
         return self.journal.add_trade(symbol, entry_price, exit_price, side, quantity, reason)
+
+    def trigger_automated_trade(self, asset_obj):
+        """
+        Executes a trade based on AI analysis.
+        Only triggers if signal is Green/Red and confidence >= 9.
+        """
+        symbol = asset_obj['symbol']
+        signal = asset_obj['signal']
+        confidence = asset_obj.get('confidence', 0)
+        price = asset_obj['price']
+        
+        if confidence < 9 or signal not in ["Green", "Red"]:
+            return False
+
+        # Calculate position size (1% risk of balance)
+        # Mocking balance for now. In real mode, it would fetch from Binance.
+        balance = 1000.0 
+        qty_usd = self.execution.calculate_position_size(symbol, balance, risk_pct=0.01)
+        qty = qty_usd / price
+
+        side = "BUY" if signal == "Green" else "SELL"
+        
+        # Execute
+        result = self.execution.place_order(symbol, side, price, qty)
+        
+        if "order_id" in result or result.get("status") == "SUCCESS":
+            # Log in Journal automatically
+            self.log_manual_trade(
+                symbol=symbol,
+                entry_price=price,
+                exit_price=0, # Active trade
+                side=side,
+                quantity=qty,
+                reason=f"AI Bot ({confidence}/10): {asset_obj['reasoning'][:50]}..."
+            )
+            # Notify Telegram
+            self.notifier.send_message(f"🤖 **BOT EJECUTÓ TRADE**: {side} {symbol} @ {price}\nConfianza: {confidence}/10")
+            return True
+        return False
 
     def get_ticker_data(self, limit=20):
         """Lightweight fetch for ticker prices (Binance only)."""

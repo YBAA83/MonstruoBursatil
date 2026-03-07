@@ -199,6 +199,33 @@ def run_dashboard():
         st.sidebar.success("🔥 ¡META CUMPLIDA!")
 
     st.sidebar.markdown("---")
+    st.sidebar.subheader("🤖 Configuración del Bot")
+    
+    bot_mode = st.sidebar.radio(
+        "Modo de Ejecución",
+        ["Simulación", "Cuenta Real"],
+        index=0 if logic.execution.mode == "simulation" else 1,
+        help="¡CUIDADO! La cuenta real ejecutará trades automáticamente si el Bot está activo."
+    )
+    
+    # Update logic mode
+    new_mode = "real" if bot_mode == "Cuenta Real" else "simulation"
+    if new_mode != logic.execution.mode:
+        logic.execution.set_mode(new_mode)
+        st.sidebar.success(f"Modo: {new_mode.upper()}")
+
+    st.session_state.bot_active = st.sidebar.toggle(
+        "🔥 Activar Trading Autónomo",
+        value=st.session_state.get('bot_active', False),
+        help="Si se activa, el Monstruo ejecutará trades de alta confianza automáticamente."
+    )
+    
+    if st.session_state.bot_active:
+        st.sidebar.info("El Monstruo está AL ACECHO 🦖")
+    else:
+        st.sidebar.warning("Bot en modo PASIVO 💤")
+
+    st.sidebar.markdown("---")
 
     # Stats Sections
     st.sidebar.subheader("📊 Marcador Histórico")
@@ -524,6 +551,12 @@ def run_dashboard():
                 st.session_state.last_update_ts = datetime.now().strftime("%H:%M:%S")
                 
                 save_stats(st.session_state.hits, st.session_state.misses, st.session_state.total_input, st.session_state.total_output)
+                
+                # Trigger BOT if active (Autonomous Mode)
+                if st.session_state.get('bot_active'):
+                    for asset in new_data:
+                        logic.trigger_automated_trade(asset)
+
                 return new_data
         except Exception as e:
             st.error(f"Error: {e}")
