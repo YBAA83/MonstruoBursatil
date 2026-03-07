@@ -5,6 +5,7 @@ from src.notifier import TelegramNotifier
 from src.backtester import Backtester
 from src.trading_journal import TradingJournal
 from src.execution_engine import ExecutionEngine
+from src.strategy_manager import StrategyManager
 import pandas as pd
 import time
 import io
@@ -21,9 +22,9 @@ class BusinessLogic:
         self.last_update = 0
         self.update_interval = 60
         self.timeframes = ["15m", "1h", "4h"]
-        self.notified_signals = {} # Track last notified signal per symbol
-        self.journal = TradingJournal() # Phase 13: 1% Goal & Journal
-        self.debug_v = "14.0" # Updated version
+        self.journal = TradingJournal() 
+        self.strategy = StrategyManager() # Phase 17: Snowball
+        self.debug_v = "15.0" # Snowball Ready
 
     def run_backtest(self, symbol, interval="1h", days=7):
         """Bridge to run backtest simulation."""
@@ -248,9 +249,10 @@ class BusinessLogic:
         if confidence < 9 or signal not in ["Green", "Red"]:
             return False
 
-        # Calculate position size (1% risk of balance)
-        # Mocking balance for now. In real mode, it would fetch from Binance.
-        balance = 1000.0 
+        # Calculate position size (1% risk of PROJECTED balance)
+        strategy_summary = self.strategy.get_strategy_summary()
+        balance = strategy_summary["projected_balance"]
+        
         qty_usd = self.execution.calculate_position_size(symbol, balance, risk_pct=0.01)
         qty = qty_usd / price
 

@@ -689,6 +689,33 @@ def run_dashboard():
             </div>
         """, unsafe_allow_html=True)
 
+        # --- SNOWBALL PROJECTION CHART ---
+        st.markdown("### 📈 Crecimiento Proyectado (Bola de Nieve)")
+        strategy_info = logic.strategy.get_strategy_summary()
+        
+        # Generate data for the chart (next 30 days)
+        from datetime import datetime, timedelta
+        dates = []
+        projected_vals = []
+        for i in range(31):
+            d = datetime.now() + timedelta(days=i)
+            dates.append(d.strftime("%d/%m"))
+            projected_vals.append(logic.strategy.get_projected_balance(d))
+            
+        chart_df = pd.DataFrame({
+            "Fecha": dates,
+            "USDT Proyectado": projected_vals
+        })
+        
+        st.line_chart(chart_df.set_index("Fecha"), color="#00ffbd")
+        
+        cols_plan = st.columns(3)
+        cols_plan[0].metric("Capital Proyectado Hoy", f"${strategy_info['projected_balance']:.2f}")
+        cols_plan[1].metric("Aportación Mensual", f"$50.00")
+        cols_plan[2].metric("Próxima Aportación", f"{strategy_info['next_contribution_days']} días")
+
+        st.markdown("---")
+
         recent_trades = logic.journal.get_recent_trades(20)
         if not recent_trades:
             st.info("Aún no hay trades registrados en la bitácora.")
