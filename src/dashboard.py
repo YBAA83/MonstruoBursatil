@@ -150,6 +150,11 @@ def run_dashboard():
     # CRITICAL: Ensure active_trades exists (Fix for AttributeError on reload)
     if not hasattr(logic.execution, "active_trades"):
         logic.execution.active_trades = {}
+    
+    # PHASE 19: Ensure intelligence exists (Fix for AttributeError on reload)
+    if not hasattr(logic, "intelligence"):
+        from src.intelligence_core import IntelligenceCore
+        logic.intelligence = IntelligenceCore(logic.journal)
 
     # Historical Stats Persistence
     stats_data = load_stats()
