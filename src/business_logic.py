@@ -6,6 +6,7 @@ from src.backtester import Backtester
 from src.trading_journal import TradingJournal
 from src.execution_engine import ExecutionEngine
 from src.strategy_manager import StrategyManager
+from src.intelligence_core import IntelligenceCore
 import pandas as pd
 import time
 import io
@@ -25,7 +26,8 @@ class BusinessLogic:
         self.notified_signals = {} # Track last notified signal per symbol
         self.journal = TradingJournal() 
         self.strategy = StrategyManager() # Phase 17: Snowball
-        self.debug_v = "16.0" # Advanced Ops Ready
+        self.intelligence = IntelligenceCore(self.journal) # Phase 19: Self-Correction
+        self.debug_v = "17.0" # Hyper-Intelligence Ready
 
     def run_backtest(self, symbol, interval="1h", days=7):
         """Bridge to run backtest simulation."""
@@ -186,7 +188,17 @@ class BusinessLogic:
             # AI Analysis
             print(f"DEBUG: Analyzing {symbol} with AI...")
             kpi_context = f" | RSI: {kpis['RSI']:.1f} | MACD: {kpis['MACD']:.4f} | BB: [{kpis['BB_Lower']:.2f} - {kpis['BB_Upper']:.2f}]" if kpis['RSI'] else ""
-            ai_result = self.ai.analyze_asset(symbol, history, full_context + kpi_context, image_bytes=image_bytes)
+            
+            # Phase 19: Get dynamic learning context
+            feedback_context = self.intelligence.get_context_for_ai()
+            
+            ai_result = self.ai.analyze_asset(
+                symbol, 
+                history, 
+                full_context + kpi_context, 
+                image_bytes=image_bytes,
+                feedback=feedback_context
+            )
             
             asset_obj = {
                 "symbol": symbol,

@@ -13,7 +13,7 @@ class AIAnalyst:
         else:
             self.client = genai.Client(api_key=api_key)
 
-    def analyze_asset(self, symbol, price_data, context="Neutral", image_bytes=None):
+    def analyze_asset(self, symbol, price_data, context="Neutral", image_bytes=None, feedback=""):
         """
         Analyzes an asset using Gemini based on price action, news sentiment, and optional chart image.
         Returns a structured response: Signal (Green/Yellow/Red), Reasoning, and Key Levels.
@@ -38,6 +38,8 @@ class AIAnalyst:
 
         Recent Price Data (OHLCV last candles):
         {price_data.tail(10).to_string()}
+
+        {feedback}
 
         {vision_instruction}
 

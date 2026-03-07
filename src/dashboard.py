@@ -750,7 +750,18 @@ def run_dashboard():
         cols_plan[2].metric("Próxima Aportación", f"{strategy_info['next_contribution_days']} días")
 
         st.markdown("---")
-
+        
+        # --- PHASE 19: AI INTELLIGENCE ---
+        st.markdown("### 🧠 Cerebro del Monstruo (Auto-Aprendizaje)")
+        lessons = logic.intelligence.learned_lessons
+        if not lessons:
+             st.info("El Monstruo está observando... Aún no hay lecciones aprendidas.")
+        else:
+            for lesson in lessons:
+                st.info(lesson)
+        
+        st.markdown("---")
+        st.markdown("### 📜 Registros Recientes")
         recent_trades = logic.journal.get_recent_trades(20)
         if not recent_trades:
             st.info("Aún no hay trades registrados en la bitácora.")
