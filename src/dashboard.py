@@ -649,7 +649,7 @@ def run_dashboard():
 
         if st.button("🚀 Iniciar Simulación"):
             with st.spinner(f"Simulando {bt_symbol} por {bt_days} días..."):
-                results = logic.run_backtest(bt_symbol, source=market_source, days=bt_days, interval="1h")
+                results = logic.run_backtest(bt_symbol, days=bt_days, interval="1h")
                 
                 if "error" in results:
                     st.error(results["error"])
