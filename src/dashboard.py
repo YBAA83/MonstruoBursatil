@@ -147,6 +147,10 @@ def run_dashboard():
     def get_logic(): return BusinessLogic()
     logic = get_logic()
 
+    # CRITICAL: Ensure active_trades exists (Fix for AttributeError on reload)
+    if not hasattr(logic.execution, "active_trades"):
+        logic.execution.active_trades = {}
+
     # Historical Stats Persistence
     stats_data = load_stats()
 
